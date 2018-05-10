@@ -1,4 +1,5 @@
 %{
+#include <bytecode.h>
 #include <iostream>
 using namespace std;
 
@@ -7,7 +8,9 @@ extern "C" int yyparse();
 extern "C" FILE *yyin;
 
 void yyerror(const char *s);
+void write_header();
 %}
+%start METHOD_BODY
 
 /* Grammar */
 %union {
@@ -49,9 +52,87 @@ void yyerror(const char *s);
 %token  T_ASSIGN    T_SEMICOL   /*  =   ;           */
 
 %%
-none:
+
+METHOD_BODY:
+        STATEMENT_LIST
+
+STATEMENT_LIST:
+        STATEMENT
+    |   STATEMENT_LIST
+        STATEMENT
+
+STATEMENT:
+        DECLARATION
+    |   IF
+    |   WHILE
+    |   ASSIGNMENT
+
+
+DECLARATION:
+        PRIMITIVE
+        T_ID_LITERAL
+        T_SEMICOL
+
+PRIMITIVE:
+        T_INT
+    |   T_FLOAT
+    |   T_BOOLEAN
+
+IF:
+        T_IF
+        T_LBRACE
+        EXPRESSION
+        T_RBRACE
+        T_LPAREN
+        STATEMENT
+        T_RPAREN
+        T_ELSE
+        T_LPAREN
+        STATEMENT
+        T_RPAREN
+
+WHILE:
+        T_WHILE
+        T_LBRACE
+        EXPRESSION
+        T_RBRACE
+        T_LPAREN
+        STATEMENT
+        T_RPAREN
+
+ASSIGNMENT:
+        T_ID_LITERAL T_EQ
+        EXPRESSION
+        T_SEMICOL
+
+EXPRESSION:
+        EXPRESSION_
+    |   EXPRESSION_
+        INFIX_OPERATOR
+        EXPRESSION_
+
+EXPRESSION_:
+        NUMBER
+    |   T_ID_LITERAL
+    |   T_LBRACE
+        EXPRESSION
+        T_RBRACE
+
+NUMBER:
+        T_INT_CONST
+    |   T_FLOAT_CONST
+
+        
+INFIX_OPERATOR:
+        T_PLUS | T_MINUS | T_MUL | T_DIV | T_MOD
+    |   T_LT | T_GT | T_LE | T_GE | T_EQ | T_NE | T_OROR | T_ANDAND
+
 %%
 
 void main() {
     yyparse();
+}
+
+void write_header() {
+    
 }
