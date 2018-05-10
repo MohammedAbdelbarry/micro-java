@@ -2,6 +2,8 @@
 // #include <bytecode.h>
 #include <iostream>
 #include <cstring>
+#include <map>
+#include "bytecode.h"
 using namespace std;
 
 extern "C" int yylex();
@@ -11,7 +13,17 @@ extern "C" FILE *yyin;
 void yyerror(const char *s);
 
 void write_header();
-void declare_new_var();
+bool id_exists(char *sval);
+void declare_new_var(const int tval, const char *sval);
+
+int var_ind = 0;
+
+struct var_metainfo {
+    int ind;
+    int type;
+};
+
+map<char *, var_metainfo> symtab;
 
 %}
 %start METHOD_BODY
@@ -22,11 +34,16 @@ void declare_new_var();
     float fval;
     bool bval;
     char *sval;
+    int tval;
+    struct {
+        char *sval;
+        int tval;
+    } idval;
 }
 %token  <ival>  T_INT_CONST
 %token  <fval>  T_FLOAT_CONST
 %token  <bval>  T_BOOL_LITERAL
-%token  <sval>  T_ID_LITERAL
+%token  <idval> T_ID_LITERAL
 %token  <sval>  T_STR_LITERAL
 
 /* Primitives */
@@ -56,7 +73,7 @@ void declare_new_var();
 %token  T_ASSIGN    T_SEMICOL   /*  =   ;           */
 
 
-%type   <type>  PRIMITIVE
+%type   <tval>  PRIMITIVE
 
 %%
 
@@ -78,12 +95,25 @@ STATEMENT:
 DECLARATION:
         PRIMITIVE
         T_ID_LITERAL
-        T_SEMICOL           
+        T_SEMICOL           {
+                                int tval = $<tval>1;
+                                char *sval = $<idval.sval>2;
 
-PRIMITIVE:
-        T_INT               
-    |   T_FLOAT             
-    |   T_BOOLEAN           
+                                if (id_exists(sval)) {
+                                    string msg = "Syntax error: Redeclaration of variable: " + string(sval);
+                                    yyerror(msg.c_str());
+                                } else {
+                                    symtab[sval] = var_metainfo {var_ind, var_ind};
+                                    declare_new_var(tval, sval);
+                                    var_ind++;
+                                }
+                                
+                            }
+
+PRIMITIVE:                  
+        T_INT               {   $$ = T_INT;      }
+    |   T_FLOAT             {   $$ = T_FLOAT;    }
+    |   T_BOOLEAN           {   $$ = T_BOOLEAN;  }
 
 IF:
         T_IF
@@ -148,4 +178,27 @@ void write_header() {
 
 void yyerror (const char *s) {
     cout << s << endl;
+}
+
+bool id_exists(char *sval) {
+    return (symtab.find(sval) != symtab.end());
+}
+
+void declare_new_var(const int tval, const char *sval) {
+    switch(tval) {
+        case T_INT:
+            cout << ICONST << "_0" << endl;
+            cout << ISTORE << " " << var_ind << endl;
+            break;
+        case T_FLOAT:
+            cout << FCONST << "_0" << endl;
+            cout << FSTORE << " " << var_ind << endl;
+            break;
+        case T_BOOLEAN:
+            // TODO: Haven't found yet a matching mnemonic.
+            break;
+        default:
+            yyerror("syntax error: unmatched type!");
+            break;
+    }
 }
