@@ -35,15 +35,11 @@ map<char *, var_metainfo> symtab;
     bool bval;
     char *sval;
     int tval;
-    struct {
-        char *sval;
-        int tval;
-    } idval;
 }
 %token  <ival>  T_INT_CONST
 %token  <fval>  T_FLOAT_CONST
 %token  <bval>  T_BOOL_LITERAL
-%token  <idval> T_ID_LITERAL
+%token  <sval>  T_ID_LITERAL
 %token  <sval>  T_STR_LITERAL
 
 /* Primitives */
@@ -97,7 +93,7 @@ DECLARATION:
         T_ID_LITERAL
         T_SEMICOL           {
                                 int tval = $<tval>1;
-                                char *sval = $<idval.sval>2;
+                                char *sval = $<sval>2;
 
                                 if (id_exists(sval)) {
                                     string msg = "Syntax error: Redeclaration of variable: " + string(sval);

@@ -80,7 +80,7 @@ id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 {inum}      {yylval.fval = atoi(yytext); return T_INT_CONST;}
 {fnum}      {yylval.ival = atof(yytext); return T_FLOAT_CONST;}
 {bin}       {yylval.bval = !strcmp(yytext, "true") ? 1 : 0; return T_BOOL_LITERAL;}
-{id}        {yylval.idval.sval = strdup(yytext); return T_ID_LITERAL;}
+{id}        {yylval.sval = strdup(yytext); return T_ID_LITERAL;}
 
 \n          ;
 %%
