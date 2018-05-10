@@ -7,7 +7,7 @@ javac.yy.c: javalex.l javac.tab.h
 	flex -o javac.yy.c javalex.l
 
 javac: javac.yy.c javac.tab.c javac.tab.h
-	g++ javac.tab.c javac.yy.c -o javac
+	g++ javac.tab.c javac.yy.c -lfl -o javac
 
 clean:
 	rm javac.yy.c javac.tab.c javac.tab.h
