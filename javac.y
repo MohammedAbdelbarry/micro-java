@@ -1,6 +1,7 @@
 %{
-#include <bytecode.h>
+// #include <bytecode.h>
 #include <iostream>
+#include <cstring>
 using namespace std;
 
 extern "C" int yylex();
@@ -8,7 +9,10 @@ extern "C" int yyparse();
 extern "C" FILE *yyin;
 
 void yyerror(const char *s);
+
 void write_header();
+void declare_new_var();
+
 %}
 %start METHOD_BODY
 
@@ -51,9 +55,12 @@ void write_header();
 %token  T_LPAREN    T_RPAREN    T_LBRACE    T_RBRACE    T_LBRACK    T_RBRACK    /*  {   }   (   )   */
 %token  T_ASSIGN    T_SEMICOL   /*  =   ;           */
 
+
+%type   <type>  PRIMITIVE
+
 %%
 
-METHOD_BODY:
+METHOD_BODY:                {   write_header();  }
         STATEMENT_LIST
 
 STATEMENT_LIST:
@@ -71,12 +78,12 @@ STATEMENT:
 DECLARATION:
         PRIMITIVE
         T_ID_LITERAL
-        T_SEMICOL
+        T_SEMICOL           
 
 PRIMITIVE:
-        T_INT
-    |   T_FLOAT
-    |   T_BOOLEAN
+        T_INT               
+    |   T_FLOAT             
+    |   T_BOOLEAN           
 
 IF:
         T_IF
@@ -101,7 +108,8 @@ WHILE:
         T_RPAREN
 
 ASSIGNMENT:
-        T_ID_LITERAL T_EQ
+        T_ID_LITERAL
+        T_EQ
         EXPRESSION
         T_SEMICOL
 
@@ -129,10 +137,15 @@ INFIX_OPERATOR:
 
 %%
 
-void main() {
+int main() {
     yyparse();
+    return 0;
 }
 
 void write_header() {
     
+}
+
+void yyerror (const char *s) {
+    cout << s << endl;
 }

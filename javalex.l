@@ -75,10 +75,10 @@ id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 {else}      return T_ELSE;
 
 
-{inum}      {yylval.fval = atoi(yytext); return T_INT_LITERAL;}
-{fnum}      {yylval.ival = atof(yytext); return T_FLOAT_LITERAL;}
+{inum}      {yylval.fval = atoi(yytext); return T_INT_CONST;}
+{fnum}      {yylval.ival = atof(yytext); return T_FLOAT_CONST;}
 {bin}       {yylval.bval = !strcmp(yytext, "true") ? 1 : 0; return T_BOOL_LITERAL;}
-{id}        {yylval.sval = strdup(yytext); return T_ID;}
+{id}        {yylval.sval = strdup(yytext); return T_ID_LITERAL;}
 
 \n          ;
 %%
