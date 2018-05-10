@@ -26,32 +26,34 @@ inum        {digit}+
 fnum        (({digit}*\.{digit}+)|({digit}+\.{digit}*)){exp}?
 exp         [eE]{sign}?{digit}+
 
+relop "=="|"!="|">"|">="|"<"|"<="
+boolop "&&"|"||"|"!"
+op "+"|"-"|"*"|"/"|"%"|"&"|"|"|"^"
+
 id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 %%
 [ \t]          ;
 
-"="         return T_ASSIGN;
-";"         return T_SEMICOL;
-    
+
 "+"         return T_PLUS;
 "-"         return T_MINUS;
 "*"         return T_MUL;
 "/"         return T_DIV;
 "%"         return T_MOD;
 
-"++"        return T_INC;
-"--"        return T_DEC;
+"++"		return T_INC;
+"--"		return T_DEC;
 
-"&&"        return T_ANDOP;
-"||"        return T_OROP;
+"&&"        return T_ANDAND;
+"||"        return T_OROR;
 "!"         return T_NOT;
 
-"<<"        return T_LS;
-">>"        return T_RS;
-"&"         return T_BIT_AND;
-"|"         return T_BIT_OR;
-"^"         return T_BIT_XOR;
-"~"         return T_CMPL;
+"<<"		return T_LS;
+">>"		return T_RS;
+"&"         return T_AND;
+"|"         return T_OR;
+"^"         return T_XOR;
+"~"         return T_CPL;
 
 "=="        return T_EQ;
 "!="        return T_NE;
@@ -68,7 +70,7 @@ id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 "}"         return T_RBRACE;
 
 {int}       return T_INT;
-{float}     return T_float;
+{float}     return T_FLOAT;
 {boolean}   return T_BOOLEAN;
 {while}     return T_WHILE;
 {for}       return T_FOR;
