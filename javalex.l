@@ -26,10 +26,6 @@ inum        {digit}+
 fnum        (({digit}*\.{digit}+)|({digit}+\.{digit}*)){exp}?
 exp         [eE]{sign}?{digit}+
 
-relop "=="|"!="|">"|">="|"<"|"<="
-boolop "&&"|"||"|"!"
-op "+"|"-"|"*"|"/"|"%"|"&"|"|"|"^"
-
 id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 %%
 [ \t]          ;
@@ -43,10 +39,15 @@ id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 "/"         return T_DIV;
 "%"         return T_MOD;
 
+"++"        return T_INC;
+"--"        return T_DEC;
+
 "&&"        return T_ANDOP;
 "||"        return T_OROP;
 "!"         return T_NOT;
 
+"<<"        return T_LS;
+">>"        return T_RS;
 "&"         return T_BIT_AND;
 "|"         return T_BIT_OR;
 "^"         return T_BIT_XOR;
