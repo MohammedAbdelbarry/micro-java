@@ -1,6 +1,7 @@
 %{
 #include <cstdio>
 #include <iostream>
+#include "javac.tab.h"
 #define YY_DECL extern "C" int yylex()
 using namespace std;
 
@@ -25,10 +26,6 @@ bin         "true"|"false"
 inum        {digit}+
 fnum        (({digit}*\.{digit}+)|({digit}+\.{digit}*)){exp}?
 exp         [eE]{sign}?{digit}+
-
-relop "=="|"!="|">"|">="|"<"|"<="
-boolop "&&"|"||"|"!"
-op "+"|"-"|"*"|"/"|"%"|"&"|"|"|"^"
 
 id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 %%
@@ -78,14 +75,14 @@ id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 {else}      return T_ELSE;
 
 
-{inum}      {yy.fval = atof(yytext); return T_INT_LITERAL;}
-{fnum}      {yy.ival = atoi(yytext); return T_FLOAT_LITERAL;}
-{bin}       {yy.bval = !strcmp(yytext, "true") ? 1 : 0; return T_BOOL_LITERAL;}
-{id}        {yy.sval = strdup(yytext); return T_ID;}
+{inum}      {yylval.fval = atoi(yytext); return T_INT_LITERAL;}
+{fnum}      {yylval.ival = atof(yytext); return T_FLOAT_LITERAL;}
+{bin}       {yylval.bval = !strcmp(yytext, "true") ? 1 : 0; return T_BOOL_LITERAL;}
+{id}        {yylval.sval = strdup(yytext); return T_ID;}
 
 \n          ;
 %%
-
+/*
 int main(int, char**) {
 	yylex();
-}
+}*/
