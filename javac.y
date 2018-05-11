@@ -48,9 +48,9 @@ extern int yylineno;
 unordered_map<string, struct var_metainfo> symtab;
 vector<string> code_list;
 int label_cnt = 0;
+extern int yydebug;
 %}
 %start METHOD_BODY
-
 %code requires {
     #include <unordered_set>
     using namespace std;
@@ -501,6 +501,7 @@ GOTOSTUB:                   {   $$ = code_list.size(); code_list.push_back(GOTO)
 %%
 
 int main() {
+    yydebug = 1;
     yyparse();
     return 0;
 }
