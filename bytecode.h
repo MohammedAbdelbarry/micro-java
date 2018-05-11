@@ -1,6 +1,15 @@
 #ifndef BYTECODE
 #define BYTECODE
 
+
+/* Header Directives */
+#define SOURCE ".source"
+#define CLASS ".class"
+#define SUPER ".super"
+#define METHOD ".method"
+#define END ".end"
+#define LIMIT ".limit"
+
 /* Variable Declarations */
 #define ICONST "iconst"
 #define FCONST "fconst"
@@ -11,6 +20,10 @@
 #define FSTORE "fstore"
 #define LDC "ldc"
 
+/* Variable Loading */
+
+#define ALOAD "aload"
+
 /* Relational Operations */
 #define IFCMP "ifcmp_"
 
@@ -19,6 +32,12 @@
 #define ISUB "isub"
 #define IMUL "imul"
 #define IDIV "idiv"
+
+/* Misc */
+#define PUBLIC "public"
+#define STATIC "static"
+#define INVOKE "invokenonvirtual"
+#define RETURN "return"
 
 /* Jump Instructions */
 #define GOTO "goto"
