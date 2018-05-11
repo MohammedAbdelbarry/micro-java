@@ -75,8 +75,16 @@ map<char *, var_metainfo> symtab;
 %type   <tval>  PRIMITIVE
 
 
-//%left T_PLUS T_MINUS
-//%left T_MUL T_DIV
+%left       T_OROR
+%left       T_ANDAND
+%left       T_OR
+%left       T_XOR
+%left       T_EQ T_NE
+%nonassoc   T_LE T_LT T_GE T_GT
+%left       T_AND
+%left       T_PLUS T_MINUS
+%left       T_MUL T_DIV T_MOD
+%right      T_INC T_DEC
 
 
 %%
