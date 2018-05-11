@@ -23,6 +23,8 @@ struct var_metainfo {
     int type;
 };
 
+extern int yylineno;
+
 map<char *, var_metainfo> symtab;
 
 %}
@@ -173,7 +175,7 @@ void write_header() {
 }
 
 void yyerror (const char *s) {
-    cout << s << endl;
+    cout << yylineno << ": " << s << endl;
 }
 
 bool id_exists(char *sval) {
