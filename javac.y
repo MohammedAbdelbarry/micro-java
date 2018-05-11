@@ -16,7 +16,6 @@ void yyerror(const char *s);
 
 string get_header();
 bool id_exists(string sval);
-void declare_new_var(const int tval, const char *sval);
 void store(string ident);
 void store_f(string ident);
 void store_const(int c);
@@ -171,10 +170,6 @@ DECLARATION:
                                 } else {
                                     symtab[sval] = (struct var_metainfo) {var_ind, tval, false};
 
-                                    string code_ = get_declaration_code(tval, sval);
-                                    
-                                    code_list.push_back(code_);
-                                    
                                     var_ind++;
                                 }
                             }
@@ -189,6 +184,8 @@ DECLARATION:
                                 } else if (tval != $2.type && !(tval == T_FLOAT && $2.type == T_INT)){
                                     string msg = "Syntax error: Incompatible types";
                                     yyerror(msg.c_str());
+                                } else if (tval == T_BOOLEAN) {
+                                    // TODO
                                 } else {
                                     symtab[sval] = (struct var_metainfo) {var_ind, tval, true};
                                     adjust_types(tval, $2.type);
@@ -293,7 +290,7 @@ ASSIGNMENT:
     |   T_ID
         T_ASSIGN
         BOOL_EXPRESSION
-        T_SEMICOL
+        T_SEMICOL           { $$.type = T_BOOLEAN; $$.sval = $1; }
 
 EXPRESSION:
         EXPRESSION
@@ -307,7 +304,18 @@ EXPRESSION:
                                 } else {
                                     $$.tval = T_FLOAT;
                                 }
-                                code_list.push_back(IADD);
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
+                                        code_list.push_back(I2F);
+                                    } else if ($1.tval == T_INT){
+                                        code_list.push_back(SWAP);
+                                        code_list.push_back(I2F);
+                                        code_list.push_back(SWAP);
+                                    }
+                                    code_list.push_back(FADD);
+                                } else {
+                                    code_list.push_back(IADD);
+                                }
                             }
     |   EXPRESSION
         T_MINUS
@@ -320,7 +328,18 @@ EXPRESSION:
                                 } else {
                                     $$.tval = T_FLOAT;
                                 }
-                                code_list.push_back(ISUB);
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
+                                        code_list.push_back(I2F);
+                                    } else if ($1.tval == T_INT){
+                                        code_list.push_back(SWAP);
+                                        code_list.push_back(I2F);
+                                        code_list.push_back(SWAP);
+                                    }
+                                    code_list.push_back(FSUB);
+                                } else {
+                                    code_list.push_back(ISUB);
+                                }
                             }
     |   EXPRESSION
         T_MUL
@@ -333,7 +352,18 @@ EXPRESSION:
                                 } else {
                                     $$.tval = T_FLOAT;
                                 }
-				code_list.push_back(IMUL);
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
+                                        code_list.push_back(I2F);
+                                    } else if ($1.tval == T_INT){
+                                        code_list.push_back(SWAP);
+                                        code_list.push_back(I2F);
+                                        code_list.push_back(SWAP);
+                                    }
+                                    code_list.push_back(FMUL);
+                                } else {
+                                    code_list.push_back(IMUL);
+                                }
                             }
     |   EXPRESSION
         T_DIV
@@ -346,7 +376,18 @@ EXPRESSION:
                                 } else {
                                     $$.tval = T_FLOAT;
                                 }
-				code_list.push_back(IDIV);
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
+                                        code_list.push_back(I2F);
+                                    } else if ($1.tval == T_INT){
+                                        code_list.push_back(SWAP);
+                                        code_list.push_back(I2F);
+                                        code_list.push_back(SWAP);
+                                    }
+                                    code_list.push_back(FDIV);
+                                } else {
+                                    code_list.push_back(IDIV);
+                                }
                             }
     |   EXPRESSION
         T_MOD
@@ -444,7 +485,7 @@ BOOL_EXPRESSION:
         T_RPAREN
     |   T_BOOL_LITERAL
 
-    
+
 NUMBER:
         T_INT_CONST         {
                                 $$ = T_INT;
@@ -499,11 +540,13 @@ void store(string ident) {
 }
 
 void store_f(string ident) {
+    stringstream ss;
     if (symtab[ident].ind >= 0 && symtab[ident].ind <= 3) {
-        cout << FSTORE << "_" << symtab[ident].ind << endl;
+        ss << FSTORE << "_" << symtab[ident].ind;
     } else {
-        cout << FSTORE << "\t\t" << symtab[ident].ind << endl;
+        ss << FSTORE << "\t\t" << symtab[ident].ind;
     }
+    code_list.push_back(ss.str());
 }
 
 void store_const(int c) {
@@ -519,21 +562,23 @@ void store_const(int c) {
 }
 
 void store_const_f(float c) {
-    cout << LDC << "\t\t" << "#" << obj_ind++ << "\t\t\t// float " << c << "f" << endl;
+    stringstream ss;
+    ss << LDC << "\t\t" << "#" << obj_ind++ << "\t\t\t// float " << c << "f";
+    code_list.push_back(ss.str());
 }
 
 void load(string ident) {
     stringstream ss;
 
     if (symtab[ident].type == T_INT){
-      ss << ILOAD << "_" << symtab[ident].ind << endl;
-    } 
+      ss << ILOAD << "_" << symtab[ident].ind;
+    }
     else {
       if (symtab[ident].ind >= 0 && symtab[ident].ind <= 3) {
-          ss << FLOAD << "_" << symtab[ident].ind << endl;
-      } 
+          ss << FLOAD << "_" << symtab[ident].ind;
+      }
       else {
-          ss << FLOAD << "\t\t" << symtab[ident].ind << endl;
+          ss << FLOAD << "\t\t" << symtab[ident].ind;
       }
     }
     code_list.push_back(ss.str());
@@ -541,28 +586,10 @@ void load(string ident) {
 
 void adjust_types(int t1, int t2) {
     if (t1 != t2) {
-        cout << I2F << endl;
+        code_list.push_back(I2F);
     }
 }
 
-// void declare_new_var(const int tval, const char *sval) {
-//     switch(tval) {
-//         case T_INT:
-//             cout << ICONST << "_0" << endl;
-//             cout << ISTORE << " " << var_ind << endl;
-//             break;
-//         case T_FLOAT:
-//             cout << FCONST << "_0" << endl;
-//             cout << FSTORE << " " << var_ind << endl;
-//             break;
-//         case T_BOOLEAN:
-//             // TODO: Haven't found yet a matching mnemonic.
-//             break;
-//         default:
-//             yyerror("syntax error: unmatched type!");
-//             break;
-//     }
-// }
 void clear(stringstream &ss) {
     ss.clear();
     ss.str(string());
@@ -583,10 +610,9 @@ void get_relop(string op, int type1, int type2, unordered_set<int> *true_set, un
     code_list.push_back(code_stream.str());
     
     clear(code_stream);
-    
-    
+
     if (type1 != type2) {
-    
+
     } else {
     }
 }
@@ -594,25 +620,6 @@ void get_relop(string op, int type1, int type2, unordered_set<int> *true_set, un
 string get_label(int c) {
     stringstream ss;
     ss << "L_" << c;
-    return ss.str();
-}
-
-string get_declaration_code(const int tval, const string sval) {
-    stringstream ss;
-
-    switch (tval) {
-        case T_INT:
-            ss << ICONST << "_0";
-            ss << ISTORE << " " << var_ind;
-            break;
-        case T_FLOAT:
-            ss << FCONST << "_0";
-            ss << FSTORE << " " << var_ind;
-        default:
-            yyerror("syntax error: Unmatched type!");
-            break;
-    }
-
     return ss.str();
 }
 
@@ -631,7 +638,6 @@ void backpatch(unordered_set<int> *list, int label_id) {
         return;
     }
     string label = get_label(label_id);
-    
     for (int code_idx : *list) {
         code_list[code_idx] = code_list[code_idx] + " " + label;
     }

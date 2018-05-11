@@ -34,11 +34,17 @@
 /* Relational Operations */
 #define IFCMP "ifcmp_"
 
+#define SWAP "swap"
+
 /* Arithmetic Operations */
 #define IADD "iadd"
 #define ISUB "isub"
 #define IMUL "imul"
 #define IDIV "idiv"
+#define FADD "fadd"
+#define FSUB "fsub"
+#define FMUL "fmul"
+#define FDIV "fdiv"
 
 /* Misc */
 #define PUBLIC "public"
