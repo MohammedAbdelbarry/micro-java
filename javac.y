@@ -13,10 +13,10 @@ extern "C" FILE *yyin;
 void yyerror(const char *s);
 
 void write_header();
-bool id_exists(char *sval);
+bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
 
-int var_ind = 0;
+int var_ind = 1;
 
 struct var_metainfo {
     int ind;
@@ -26,7 +26,7 @@ struct var_metainfo {
 extern char* yytext;
 extern int yylineno;
 
-map<char *, struct var_metainfo> symtab;
+map<string, struct var_metainfo> symtab;
 
 %}
 %start METHOD_BODY
@@ -83,7 +83,7 @@ map<char *, struct var_metainfo> symtab;
 %nonassoc   T_LE T_LT T_GE T_GT
 %left       T_AND
 %left       T_PLUS T_MINUS
-%left       T_MUL T_DIV T_MOD   
+%left       T_MUL T_DIV T_MOD
 %left       T_NEG T_CPL T_NOT
 %right      T_INC T_DEC
 
@@ -110,22 +110,35 @@ DECLARATION:
         T_ID
         T_SEMICOL           {
                                 int tval = $<tval>1;
-                                char *sval = $<sval>2;
+                                string sval = $<sval>2;
 
                                 if (id_exists(sval)) {
                                     string msg = "Syntax error: Redeclaration of variable: " + string(sval);
                                     yyerror(msg.c_str());
                                 } else {
-                                    symtab[sval] = var_metainfo {var_ind, var_ind};
-                                    declare_new_var(tval, sval);
+                                    symtab[sval] = (struct var_metainfo) {var_ind, tval};
+                                    // declare_new_var(tval, sval);
                                     var_ind++;
                                 }
-                                
+
                             }
     |   PRIMITIVE
-        ASSIGNMENT
+        ASSIGNMENT          {
+                                int tval = $<tval>1;
+                                string sval = $<sval>2;
 
-PRIMITIVE:                  
+                                if (id_exists(sval)) {
+                                    string msg = "Syntax error: Redeclaration of variable: " + string(sval);
+                                    yyerror(msg.c_str());
+                                } else {
+                                    symtab[sval] = (struct var_metainfo) {var_ind, tval};
+                                    cout << "istore_" << var_ind << endl;
+                                    var_ind++;
+                                }
+
+                            }
+
+PRIMITIVE:
         T_INT               {   $$ = T_INT;      }
     |   T_FLOAT             {   $$ = T_FLOAT;    }
     |   T_BOOLEAN           {   $$ = T_BOOLEAN;  }
@@ -188,7 +201,7 @@ EXPRESSION_:
         EXPRESSION
     |   T_MINUS
         EXPRESSION      %prec T_NEG
-        
+
 
 BOOL_EXPRESSION:
         EXPRESSION
@@ -198,7 +211,7 @@ BOOL_EXPRESSION:
         BOOL_OPERATOR
         BOOL_EXPRESSION_
     |   BOOL_EXPRESSION_
-    
+
 BOOL_EXPRESSION_:
     |   T_NOT
         BOOL_EXPRESSION
@@ -206,15 +219,15 @@ BOOL_EXPRESSION_:
         BOOL_EXPRESSION
         T_RPAREN
     |   T_BOOL_LITERAL
-        
+
 NUMBER:
         T_INT_CONST
     |   T_FLOAT_CONST
 
-        
+
 ARITH_OPERATOR:
         T_PLUS | T_MINUS | T_MUL | T_DIV | T_MOD | T_AND | T_OR
-    
+
 REL_OPERATOR:
         T_LT | T_GT | T_LE | T_GE | T_EQ | T_NE
 
@@ -229,32 +242,32 @@ int main() {
 }
 
 void write_header() {
-    
+
 }
 
 void yyerror (const char *s) {
     cout << yylineno << ": " << s << " near " << yytext << endl;
 }
 
-bool id_exists(char *sval) {
+bool id_exists(string sval) {
     return (symtab.find(sval) != symtab.end());
 }
 
-void declare_new_var(const int tval, const char *sval) {
-    switch(tval) {
-        case T_INT:
-            cout << ICONST << "_0" << endl;
-            cout << ISTORE << " " << var_ind << endl;
-            break;
-        case T_FLOAT:
-            cout << FCONST << "_0" << endl;
-            cout << FSTORE << " " << var_ind << endl;
-            break;
-        case T_BOOLEAN:
-            // TODO: Haven't found yet a matching mnemonic.
-            break;
-        default:
-            yyerror("syntax error: unmatched type!");
-            break;
-    }
-}
+// void declare_new_var(const int tval, const char *sval) {
+//     switch(tval) {
+//         case T_INT:
+//             cout << ICONST << "_0" << endl;
+//             cout << ISTORE << " " << var_ind << endl;
+//             break;
+//         case T_FLOAT:
+//             cout << FCONST << "_0" << endl;
+//             cout << FSTORE << " " << var_ind << endl;
+//             break;
+//         case T_BOOLEAN:
+//             // TODO: Haven't found yet a matching mnemonic.
+//             break;
+//         default:
+//             yyerror("syntax error: unmatched type!");
+//             break;
+//     }
+// }
