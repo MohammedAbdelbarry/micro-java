@@ -18,9 +18,14 @@
 /* Variable Storing */
 #define ISTORE "istore"
 #define FSTORE "fstore"
+#define LDC "ldc"
 
 /* Variable Loading */
+
 #define ALOAD "aload"
+
+/* Relational Operations */
+#define IFCMP "ifcmp_"
 
 /* Arithmetic Operations */
 #define IADD "iadd"
@@ -33,4 +38,8 @@
 #define STATIC "static"
 #define INVOKE "invokenonvirtual"
 #define RETURN "return"
+
+/* Jump Instructions */
+#define GOTO "goto"
+
 #endif

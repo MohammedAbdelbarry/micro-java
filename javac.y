@@ -17,8 +17,9 @@ bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
 void store(string ident);
 void store_const(int c);
+string get_relop(string op, int type1, int type2);
 struct code get_declaration_code(const int tval, const string sval);
-
+string get_label();
 
 int var_ind = 1;
 
@@ -88,8 +89,9 @@ map<string, struct var_metainfo> symtab;
 %type   <tval>  PRIMITIVE
 %type   <codeval>   DECLARATION
 %type   <tval>  NUMBER
-%type   <tval>  EXPRESSION_
-%type   <tval>  EXPRESSION
+%type   <codeval>  EXPRESSION
+%type   <codeval>  BOOL_EXPRESSION
+
 
 
 %left       T_OROR
@@ -137,7 +139,7 @@ DECLARATION:
 
                                     struct code code_ = get_declaration_code(tval, sval);
                                     
-                                    $<codeval.code>$ = (char *) code_.code.c_str();
+                                    $<codeval.code>$ = strdup(code_.code.c_str());
                                     $<codeval.codelen>$ = code_.codelen;
 
                                     cout << $<codeval.code>$ << endl;
@@ -258,14 +260,14 @@ EXPRESSION_:
         T_INT_CONST         {   stringstream ss;
                                 ss << LDC << " ";
                                 ss << $1;
-                                $<codeval.code>$ = (char *) ss.str().c_str();
+                                $<codeval.code>$ = strdup(ss.str().c_str());
                                 $<codeval.codelen>$ = 2;
                             }
     |   T_FLOAT_CONST       {
                                 stringstream ss;
                                 ss << LDC << " ";
                                 ss << $1;
-                                $<codeval.code>$ = (char *) ss.str().c_str();
+                                $<codeval.code>$ = strdup(ss.str().c_str());
                                 $<codeval.codelen>$ = 2;
                             }
     |   T_ID    
@@ -281,31 +283,52 @@ EXPRESSION_:
 BOOL_EXPRESSION:
         EXPRESSION
         T_LT
-        EXPRESSION
+        EXPRESSION          {
+                                $<codeval.code>$ = strdup(get_relop("lt", $<tval>1, $<tval>3).c_str());
+                                $<codeval.codelen>$ = 3;
+                                cout << $<codeval.code>1 << endl << $<codeval.code>3 << endl <<  $<codeval.code>$ << endl;
+                            }
     |   EXPRESSION
         T_GT
-        EXPRESSION
+        EXPRESSION          {
+                                $<codeval.code>$ = strdup(get_relop("gt", $<tval>1, $<tval>3).c_str());
+                                $<codeval.codelen>$ = 3;
+                                cout << $<codeval.code>1 << endl << $<codeval.code>3 << endl <<  $<codeval.code>$ << endl;
+                            }
     |   EXPRESSION
         T_GE
-        EXPRESSION
+        EXPRESSION          {
+                                $<codeval.code>$ = strdup(get_relop("ge", $<tval>1, $<tval>3).c_str());
+                                $<codeval.codelen>$ = 3;
+                                cout << $<codeval.code>1 << endl << $<codeval.code>3 << endl <<  $<codeval.code>$ << endl;
+                            }
     |   EXPRESSION
         T_LE
-        EXPRESSION
+        EXPRESSION          {
+                                $<codeval.code>$ = strdup(get_relop("le", $<tval>1, $<tval>3).c_str());
+                                $<codeval.codelen>$ = 3;
+                                cout << $<codeval.code>1 << endl << $<codeval.code>3 << endl <<  $<codeval.code>$ << endl;
+                            }
     |   EXPRESSION
         T_EQ
-        EXPRESSION
+        EXPRESSION          {
+                                $<codeval.code>$ = strdup(get_relop("eq", $<tval>1, $<tval>3).c_str());
+                                $<codeval.codelen>$ = 3;
+                                cout << $<codeval.code>1 << endl << $<codeval.code>3 << endl <<  $<codeval.code>$ << endl;
+                            }
     |   EXPRESSION
         T_NE
-        EXPRESSION
+        EXPRESSION          {
+                                $<codeval.code>$ = strdup(get_relop("ne", $<tval>1, $<tval>3).c_str());
+                                $<codeval.codelen>$ = 3;
+                                cout << $<codeval.code>1 << endl << $<codeval.code>3 << endl <<  $<codeval.code>$ << endl;
+                            }
     |   BOOL_EXPRESSION
         T_ANDAND
-        BOOL_EXPRESSION_
+        BOOL_EXPRESSION
     |   BOOL_EXPRESSION
         T_OROR
-        BOOL_EXPRESSION_
-    |   BOOL_EXPRESSION_
-
-BOOL_EXPRESSION_:
+        BOOL_EXPRESSION
     |   T_NOT
         BOOL_EXPRESSION
     |   T_LPAREN
@@ -313,19 +336,12 @@ BOOL_EXPRESSION_:
         T_RPAREN
     |   T_BOOL_LITERAL
 
+    
 NUMBER:
         T_INT_CONST         { store_const($1); }
     |   T_FLOAT_CONST
 
 
-ARITH_OPERATOR:
-        T_PLUS | T_MINUS | T_MUL | T_DIV | T_MOD | T_AND | T_OR
-
-REL_OPERATOR:
-        T_LT | T_GT | T_LE | T_GE | T_EQ | T_NE
-
-BOOL_OPERATOR:
-        T_ANDAND | T_OROR
 %%
 
 int main() {
@@ -370,6 +386,32 @@ void store_const(int c) {
     } else {
         cout << BIPUSH << "\t\t" << c << endl;
     }
+}
+
+string get_relop(string op, int type1, int type2) {
+    string true_label = get_label();
+    stringstream code_stream;
+    code_stream << IFCMP << op << "\t\t" << true_label;
+    code_stream << "\n";
+    code_stream << BIPUSH << "\t\t" << 0;
+    code_stream << "\n";
+    code_stream << GOTO << "\t\t" << 2;
+    code_stream << "\n";   
+    code_stream << true_label << ": " << BIPUSH << "\t\t" << 1;
+    
+    return code_stream.str();
+    if (type1 != type2) {
+    
+    } else {
+        return IFCMP + op;
+    }
+}
+
+string get_label() {
+    static int label_cnt = 0;
+    stringstream ss;
+    ss << "L_" << (label_cnt++);
+    return ss.str();
 }
 
 struct code get_declaration_code(const int tval, const string sval) {
