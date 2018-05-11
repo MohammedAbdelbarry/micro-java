@@ -23,6 +23,7 @@ struct var_metainfo {
     int type;
 };
 
+extern char* yytext;
 extern int yylineno;
 
 map<char *, var_metainfo> symtab;
@@ -41,7 +42,7 @@ map<char *, var_metainfo> symtab;
 %token  <ival>  T_INT_CONST
 %token  <fval>  T_FLOAT_CONST
 %token  <bval>  T_BOOL_LITERAL
-%token  <sval>  T_ID_LITERAL
+%token  <sval>  T_ID
 %token  <sval>  T_STR_LITERAL
 
 /* Primitives */
@@ -67,11 +68,16 @@ map<char *, var_metainfo> symtab;
 %token  T_INC   T_DEC  /*  ++  --  <<  >>  &&  ||  */
 
 /* Punctuation */
-%token  T_LPAREN    T_RPAREN    T_LBRACE    T_RBRACE    T_LBRACK    T_RBRACK    /*  {   }   (   )   */
+%token  T_LPAREN    T_RPAREN    T_LBRACE    T_RBRACE    T_LBRACK    T_RBRACK    /*  (   )  {   }    */
 %token  T_ASSIGN    T_SEMICOL   /*  =   ;           */
 
 
 %type   <tval>  PRIMITIVE
+
+
+//%left T_PLUS T_MINUS
+//%left T_MUL T_DIV
+
 
 %%
 
@@ -92,7 +98,7 @@ STATEMENT:
 
 DECLARATION:
         PRIMITIVE
-        T_ID_LITERAL
+        T_ID
         T_SEMICOL           {
                                 int tval = $<tval>1;
                                 char *sval = $<sval>2;
@@ -107,6 +113,8 @@ DECLARATION:
                                 }
                                 
                             }
+    |   PRIMITIVE
+        ASSIGNMENT
 
 PRIMITIVE:                  
         T_INT               {   $$ = T_INT;      }
@@ -115,53 +123,92 @@ PRIMITIVE:
 
 IF:
         T_IF
-        T_LBRACE
+        T_LPAREN
         EXPRESSION
+        T_RPAREN
+        T_LBRACE
+        STATEMENT_LIST
         T_RBRACE
-        T_LPAREN
-        STATEMENT
-        T_RPAREN
         T_ELSE
+        T_LBRACE
+        STATEMENT_LIST
+        T_RBRACE
+    |   T_IF
         T_LPAREN
-        STATEMENT
+        EXPRESSION
         T_RPAREN
+        T_SEMICOL
 
 WHILE:
         T_WHILE
-        T_LBRACE
-        EXPRESSION
-        T_RBRACE
         T_LPAREN
-        STATEMENT
+        BOOL_EXPRESSION
         T_RPAREN
+        T_LBRACE
+        STATEMENT_LIST
+        T_RBRACE
+    |   T_WHILE
+        T_LPAREN
+        BOOL_EXPRESSION
+        T_RPAREN
+        T_SEMICOL
 
 ASSIGNMENT:
-        T_ID_LITERAL
-        T_EQ
+        T_ID
+        T_ASSIGN
         EXPRESSION
+        T_SEMICOL
+    |   T_ID
+        T_ASSIGN
+        BOOL_EXPRESSION
         T_SEMICOL
 
 EXPRESSION:
         EXPRESSION_
-    |   EXPRESSION_
-        INFIX_OPERATOR
+    |   EXPRESSION
+        ARITH_OPERATOR
         EXPRESSION_
 
 EXPRESSION_:
         NUMBER
-    |   T_ID_LITERAL
-    |   T_LBRACE
+    |   T_ID
+    |   T_LPAREN
         EXPRESSION
-        T_RBRACE
+        T_RPAREN
+    |   T_CPL
+        EXPRESSION
+        
 
+BOOL_EXPRESSION:
+        EXPRESSION
+        REL_OPERATOR
+        EXPRESSION
+    |   BOOL_EXPRESSION
+        BOOL_OPERATOR
+        BOOL_EXPRESSION_
+    |   BOOL_EXPRESSION_
+    
+BOOL_EXPRESSION_:
+    |   T_NOT
+        BOOL_EXPRESSION
+    |   T_LPAREN
+        BOOL_EXPRESSION
+        T_RPAREN
+    |   T_BOOL_LITERAL
+        
 NUMBER:
         T_INT_CONST
     |   T_FLOAT_CONST
 
         
-INFIX_OPERATOR:
-        T_PLUS | T_MINUS | T_MUL | T_DIV | T_MOD
-    |   T_LT | T_GT | T_LE | T_GE | T_EQ | T_NE | T_OROR | T_ANDAND
+ARITH_OPERATOR:
+        T_PLUS | T_MINUS | T_MUL | T_DIV | T_MOD | T_AND | T_OR
+    
+REL_OPERATOR:
+        T_LT | T_GT | T_LE | T_GE | T_EQ | T_NE
+
+BOOL_OPERATOR:
+        T_ANDAND | T_OROR
 
 %%
 
@@ -175,7 +222,7 @@ void write_header() {
 }
 
 void yyerror (const char *s) {
-    cout << yylineno << ": " << s << endl;
+    cout << yylineno << ": " << s << " near " << yytext << endl;
 }
 
 bool id_exists(char *sval) {
