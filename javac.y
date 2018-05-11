@@ -16,13 +16,24 @@ void write_header();
 bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
 void store(string ident);
+void store_f(string ident);
 void store_const(int c);
+void store_const_f(float c);
+void load(string ident);
+void adjust_types(int t1, int t2);
 
 int var_ind = 1;
+int obj_ind = 2;
 
 struct var_metainfo {
     int ind;
     int type;
+    bool initialized;
+};
+
+struct assignment_metainfo {
+    int type;
+    string sval;
 };
 
 extern char* yytext;
@@ -40,6 +51,10 @@ map<string, struct var_metainfo> symtab;
     bool bval;
     char *sval;
     int tval;
+    struct {
+        int type;
+        char *sval;
+    } assignment_metainfo;
 }
 %token  <ival>  T_INT_CONST
 %token  <fval>  T_FLOAT_CONST
@@ -76,8 +91,8 @@ map<string, struct var_metainfo> symtab;
 
 %type   <tval>  PRIMITIVE
 %type   <tval>  NUMBER
-%type   <tval>  EXPRESSION_
 %type   <tval>  EXPRESSION
+%type   <assignment_metainfo>  ASSIGNMENT
 
 
 %left       T_OROR
@@ -120,7 +135,7 @@ DECLARATION:
                                     string msg = "Syntax error: Redeclaration of variable: " + string(sval);
                                     yyerror(msg.c_str());
                                 } else {
-                                    symtab[sval] = (struct var_metainfo) {var_ind, tval};
+                                    symtab[sval] = (struct var_metainfo) {var_ind, tval, false};
                                     var_ind++;
                                 }
 
@@ -128,17 +143,23 @@ DECLARATION:
     |   PRIMITIVE
         ASSIGNMENT          {
                                 int tval = $<tval>1;
-                                string sval = $<sval>2;
+                                string sval = $2.sval;
 
                                 if (id_exists(sval)) {
                                     string msg = "Syntax error: Redeclaration of variable: " + string(sval);
                                     yyerror(msg.c_str());
+                                } else if (tval != $2.type && !(tval == T_FLOAT && $2.type == T_INT)){
+                                    string msg = "Syntax error: Incompatible types";
+                                    yyerror(msg.c_str());
                                 } else {
-                                    symtab[sval] = (struct var_metainfo) {var_ind, tval};
-                                    store(sval);
+                                    symtab[sval] = (struct var_metainfo) {var_ind, tval, true};
+                                    adjust_types(tval, $2.type);
+                                    if (tval == T_INT)
+                                      store(sval);
+                                    else
+                                      store_f(sval);
                                     var_ind++;
                                 }
-
                             }
 
 PRIMITIVE:
@@ -188,8 +209,16 @@ ASSIGNMENT_:
                                 if (!id_exists(sval)) {
                                     string msg = "Syntax error: Cannot find symbol: " + string(sval);
                                     yyerror(msg.c_str());
+                                } else if (symtab[$1].type != $3 && !(symtab[$1].type == T_FLOAT && $3 == T_INT)){
+                                    string msg = "Syntax error: Incompatible types";
+                                    yyerror(msg.c_str());
                                 } else {
-                                    store(sval);
+                                    symtab[$1].initialized = true;
+                                    adjust_types(symtab[$1].type, $3);
+                                    if (symtab[$1].type == T_INT)
+                                      store(sval);
+                                    else
+                                      store_f(sval);
                                 }
                             }
     |   T_ID
@@ -201,49 +230,96 @@ ASSIGNMENT:
         T_ID
         T_ASSIGN
         EXPRESSION
-        T_SEMICOL
+        T_SEMICOL           { $$.type = $3; $$.sval = $1; }
     |   T_ID
         T_ASSIGN
         BOOL_EXPRESSION
         T_SEMICOL
 
 EXPRESSION:
-        EXPRESSION_
-    |   EXPRESSION
+        EXPRESSION
         T_PLUS
-        EXPRESSION_         {cout << IADD << endl;}
+        EXPRESSION          {
+                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else if ($1 == $3) {
+                                    $$ = $1;
+                                } else {
+                                    $$ = T_FLOAT;
+                                }
+                                cout << IADD << endl;
+                            }
     |   EXPRESSION
         T_MINUS
-        EXPRESSION_         {cout << ISUB << endl;}
+        EXPRESSION          {
+                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else if ($1 == $3) {
+                                    $$ = $1;
+                                } else {
+                                    $$ = T_FLOAT;
+                                }
+                                cout << ISUB << endl;
+                            }
     |   EXPRESSION
         T_MUL
-        EXPRESSION_         {cout << IMUL << endl;}
+        EXPRESSION          {
+                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else if ($1 == $3) {
+                                    $$ = $1;
+                                } else {
+                                    $$ = T_FLOAT;
+                                }
+                            }
     |   EXPRESSION
         T_DIV
-        EXPRESSION_         {cout << IDIV << endl;}
+        EXPRESSION          {
+                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else if ($1 == $3) {
+                                    $$ = $1;
+                                } else {
+                                    $$ = T_FLOAT;
+                                }
+                            }
     |   EXPRESSION
         T_MOD
-        EXPRESSION_
+        EXPRESSION
     |   EXPRESSION
         T_AND
-        EXPRESSION_
+        EXPRESSION
     |   EXPRESSION
         T_XOR
-        EXPRESSION_
+        EXPRESSION
     |   EXPRESSION
         T_OR
-        EXPRESSION_
-
-EXPRESSION_:
-        NUMBER
-    |   T_ID
+        EXPRESSION
+    |   NUMBER              { $$ = $1; }
+    |   T_ID                {
+                                if (!id_exists($1)) {
+                                  string msg = "Syntax error: Cannot find symbol: " + string($1);
+                                  yyerror(msg.c_str());
+                                } else if (!symtab[$1].initialized){
+                                  string msg = "Syntax error: variable " + string($1) + " might not have been initialized";
+                                  yyerror(msg.c_str());
+                                } else {
+                                  load($1);
+                                  $$ = symtab[$1].type;
+                                }
+                            }
     |   T_LPAREN
         EXPRESSION
-        T_RPAREN
+        T_RPAREN            { $$ = $2; }
     |   T_CPL
         EXPRESSION
     |   T_MINUS
         EXPRESSION      %prec T_NEG
+
 
 
 BOOL_EXPRESSION:
@@ -282,8 +358,14 @@ BOOL_EXPRESSION_:
     |   T_BOOL_LITERAL
 
 NUMBER:
-        T_INT_CONST         { store_const($1); }
-    |   T_FLOAT_CONST
+        T_INT_CONST         {
+                                $$ = T_INT;
+                                store_const($1);
+                            }
+    |   T_FLOAT_CONST       {
+                                $$ = T_FLOAT;
+                                store_const_f($1);
+                            }
 
 
 ARITH_OPERATOR:
@@ -317,13 +399,43 @@ void store(string ident) {
     cout << ISTORE << "_" << symtab[ident].ind << endl;
 }
 
+void store_f(string ident) {
+    if (symtab[ident].ind >= 0 && symtab[ident].ind <= 3) {
+        cout << FSTORE << "_" << symtab[ident].ind << endl;
+    } else {
+        cout << FSTORE << "\t\t" << symtab[ident].ind << endl;
+    }
+}
+
 void store_const(int c) {
     if (c >= 0 && c <= 5){
         cout << ICONST << "_" << c << endl;
     } else if (c == -1) {
-        cout << ICONST << "_m1";
+        cout << ICONST << "_m1" << endl;
     } else {
         cout << BIPUSH << "\t\t" << c << endl;
+    }
+}
+
+void store_const_f(float c) {
+    cout << LDC << "\t\t" << "#" << obj_ind++ << "\t\t\t// float " << c << "f" << endl;
+}
+
+void load(string ident) {
+    if (symtab[ident].type == T_INT){
+      cout << ILOAD << "_" << symtab[ident].ind << endl;
+    } else {
+      if (symtab[ident].ind >= 0 && symtab[ident].ind <= 3) {
+          cout << FLOAD << "_" << symtab[ident].ind << endl;
+      } else {
+          cout << FLOAD << "\t\t" << symtab[ident].ind << endl;
+      }
+    }
+}
+
+void adjust_types(int t1, int t2) {
+    if (t1 != t2) {
+        cout << I2F << endl;
     }
 }
 
