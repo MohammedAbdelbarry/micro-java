@@ -15,6 +15,7 @@ void yyerror(const char *s);
 void write_header();
 bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
+void store(string ident);
 
 int var_ind = 1;
 
@@ -102,8 +103,7 @@ STATEMENT:
         DECLARATION
     |   IF
     |   WHILE
-    |   ASSIGNMENT
-
+    |   ASSIGNMENT_
 
 DECLARATION:
         PRIMITIVE
@@ -117,7 +117,6 @@ DECLARATION:
                                     yyerror(msg.c_str());
                                 } else {
                                     symtab[sval] = (struct var_metainfo) {var_ind, tval};
-                                    // declare_new_var(tval, sval);
                                     var_ind++;
                                 }
 
@@ -132,7 +131,7 @@ DECLARATION:
                                     yyerror(msg.c_str());
                                 } else {
                                     symtab[sval] = (struct var_metainfo) {var_ind, tval};
-                                    cout << "istore_" << var_ind << endl;
+                                    store(sval);
                                     var_ind++;
                                 }
 
@@ -173,6 +172,25 @@ WHILE:
         T_LPAREN
         BOOL_EXPRESSION
         T_RPAREN
+        T_SEMICOL
+
+
+ASSIGNMENT_:
+        T_ID
+        T_ASSIGN
+        EXPRESSION
+        T_SEMICOL           {
+                                string sval = $<sval>1;
+                                if (!id_exists(sval)) {
+                                    string msg = "Syntax error: Cannot find symbol: " + string(sval);
+                                    yyerror(msg.c_str());
+                                } else {
+                                    store(sval);
+                                }
+                            }
+    |   T_ID
+        T_ASSIGN
+        BOOL_EXPRESSION
         T_SEMICOL
 
 ASSIGNMENT:
@@ -289,6 +307,10 @@ void yyerror (const char *s) {
 
 bool id_exists(string sval) {
     return (symtab.find(sval) != symtab.end());
+}
+
+void store(string ident) {
+    cout << ISTORE << "_" << symtab[ident].ind << endl;
 }
 
 // void declare_new_var(const int tval, const char *sval) {
