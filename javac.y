@@ -504,7 +504,7 @@ void print_bytecode(ostream &stream) {
 }
 
 int main() {
-    yydebug = 1;
+    yydebug = 0;
     FILE *myfile = fopen("src.java", "r");
     if (!myfile) {
 		cout << "Failed to open file" << endl;
