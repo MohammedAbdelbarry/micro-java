@@ -25,7 +25,7 @@ void adjust_types(int t1, int t2);
 void get_relop(string op, int type1, int type2);
 string get_label(int);
 void backpatch(unordered_set<int> *list, int label_id);
-unordered_set<int> *merge_lists(unordered_set<int> *list1, unordered_set<int> *list2);
+unordered_set<int> *merge(unordered_set<int> *set1, unordered_set<int> *set2);
 
 int var_ind = 1;
 int obj_ind = 2;
@@ -50,6 +50,10 @@ int label_cnt = 0;
 %}
 %start METHOD_BODY
 
+%code requires {
+    #include <unordered_set>
+    using namespace std;
+}
 /* Grammar */
 %union {
     int ival;
@@ -61,6 +65,14 @@ int label_cnt = 0;
         int type;
         char *sval;
     } assignment_metainfo;
+    struct {
+        unordered_set<int> *next_set;
+    } stmtval;
+    struct {
+        unordered_set<int> *true_set;
+        unordered_set<int> *false_set;
+        int tval;
+    } exprval;
 }
 %token  <ival>  T_INT_CONST
 %token  <fval>  T_FLOAT_CONST
@@ -96,12 +108,18 @@ int label_cnt = 0;
 
 
 %type   <tval>  PRIMITIVE
-%type   <tval>   DECLARATION
+%type   <tval>  DECLARATION
 %type   <tval>  NUMBER
-%type   <tval>  EXPRESSION
 %type   <assignment_metainfo>  ASSIGNMENT
-%type   <tval>  BOOL_EXPRESSION
+%type   <ival>  MARKER
+%type   <ival>  GOTOSTUB
 
+%type   <stmtval>   STATEMENT_LIST
+%type   <stmtval>   STATEMENT
+%type   <exprval>   EXPRESSION
+%type   <exprval>   BOOL_EXPRESSION
+%type   <stmtval>   WHILE
+%type   <stmtval>   IF
 
 
 %left       T_OROR
@@ -118,10 +136,14 @@ int label_cnt = 0;
 
 %%
 
-METHOD_BODY:
-        STATEMENT_LIST      {
+METHOD_BODY:                {   
                                 stringstream ss;
-                                ss << get_header();  }
+                                ss << get_header();
+                            }
+        STATEMENT_LIST
+        MARKER              {
+                                backpatch($2.next_set, $3);
+                            }
 
 STATEMENT_LIST:
         STATEMENT
@@ -129,10 +151,10 @@ STATEMENT_LIST:
         STATEMENT
 
 STATEMENT:
-        DECLARATION
-    |   IF
-    |   WHILE
-    |   ASSIGNMENT_
+        DECLARATION         {   $$.next_set = new unordered_set<int>();  }
+    |   ASSIGNMENT_         {   $$.next_set = new unordered_set<int>();  }
+    |   IF                  {   $$.next_set = $1.next_set;               }
+    |   WHILE               {   $$.next_set = $1.next_set;               }
 
 DECLARATION:
         PRIMITIVE
@@ -174,6 +196,8 @@ DECLARATION:
                                 }
                             }
 
+MARKER:                     {   $$ = label_cnt; code_list.push_back(get_label(label_cnt++));  }
+
 PRIMITIVE:
         T_INT               {   $$ = T_INT;      }
     |   T_FLOAT             {   $$ = T_FLOAT;    }
@@ -182,15 +206,24 @@ PRIMITIVE:
 IF:
         T_IF
         T_LPAREN
-        EXPRESSION
+        BOOL_EXPRESSION
         T_RPAREN
         T_LBRACE
+        MARKER
         STATEMENT_LIST
+        GOTOSTUB
         T_RBRACE
         T_ELSE
         T_LBRACE
+        MARKER
         STATEMENT_LIST
-        T_RBRACE
+        T_RBRACE            {
+                                backpatch($3.true_set, $6);
+                                backpatch($3.false_set, $12);
+
+                                $$.next_set = merge($7.next_set, $13.next_set);
+                                (*$$.next_set).insert($8);
+                            }
     |   T_IF
         T_LPAREN
         EXPRESSION
@@ -200,11 +233,21 @@ IF:
 WHILE:
         T_WHILE
         T_LPAREN
+        MARKER
         BOOL_EXPRESSION
         T_RPAREN
         T_LBRACE
+        MARKER
         STATEMENT_LIST
-        T_RBRACE
+        T_RBRACE            {
+                                stringstream ss;
+                                ss << GOTO << " " << get_label($3);
+                                
+                                backpatch($8.next_set, $3);
+                                backpatch($4.true_set, $7);
+
+                                $$.next_set = $4.false_set;
+                            }
     |   T_WHILE
         T_LPAREN
         BOOL_EXPRESSION
@@ -221,12 +264,12 @@ ASSIGNMENT_:
                                 if (!id_exists(sval)) {
                                     string msg = "Syntax error: Cannot find symbol: " + string(sval);
                                     yyerror(msg.c_str());
-                                } else if (symtab[$1].type != $3 && !(symtab[$1].type == T_FLOAT && $3 == T_INT)){
+                                } else if (symtab[$1].type != $3.tval && !(symtab[$1].type == T_FLOAT && $3.tval == T_INT)) {
                                     string msg = "Syntax error: Incompatible types";
                                     yyerror(msg.c_str());
                                 } else {
                                     symtab[$1].initialized = true;
-                                    adjust_types(symtab[$1].type, $3);
+                                    adjust_types(symtab[$1].type, $3.tval);
                                     if (symtab[$1].type == T_INT)
                                       store(sval);
                                     else
@@ -242,7 +285,7 @@ ASSIGNMENT:
         T_ID
         T_ASSIGN
         EXPRESSION
-        T_SEMICOL           { $$.type = $3; $$.sval = $1; }
+        T_SEMICOL           { $$.type = $3.tval; $$.sval = $1; }
     |   T_ID
         T_ASSIGN
         BOOL_EXPRESSION
@@ -252,18 +295,18 @@ EXPRESSION:
         EXPRESSION
         T_PLUS
         EXPRESSION          {
-                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                if (($1.tval != T_INT && $1.tval != T_FLOAT) || ($3.tval != T_INT && $3.tval != T_FLOAT )) {
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
-                                } else if ($1 == $3) {
-                                    $$ = $1;
+                                } else if ($1.tval == $3.tval) {
+                                    $$.tval = $1.tval;
                                 } else {
-                                    $$ = T_FLOAT;
+                                    $$.tval = T_FLOAT;
                                 }
-                                if ($$ == T_FLOAT){
-                                    if ($3 == T_INT){
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
                                         code_list.push_back(I2F);
-                                    } else if ($1 == T_INT){
+                                    } else if ($1.tval == T_INT){
                                         code_list.push_back(SWAP);
                                         code_list.push_back(I2F);
                                         code_list.push_back(SWAP);
@@ -276,18 +319,18 @@ EXPRESSION:
     |   EXPRESSION
         T_MINUS
         EXPRESSION          {
-                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                if (($1.tval != T_INT && $1.tval != T_FLOAT) || ($3.tval != T_INT && $3.tval != T_FLOAT )) {
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
-                                } else if ($1 == $3) {
-                                    $$ = $1;
+                                } else if ($1.tval == $3.tval) {
+                                    $$.tval = $1.tval;
                                 } else {
-                                    $$ = T_FLOAT;
+                                    $$.tval = T_FLOAT;
                                 }
-                                if ($$ == T_FLOAT){
-                                    if ($3 == T_INT){
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
                                         code_list.push_back(I2F);
-                                    } else if ($1 == T_INT){
+                                    } else if ($1.tval == T_INT){
                                         code_list.push_back(SWAP);
                                         code_list.push_back(I2F);
                                         code_list.push_back(SWAP);
@@ -300,18 +343,18 @@ EXPRESSION:
     |   EXPRESSION
         T_MUL
         EXPRESSION          {
-                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                if (($1.tval != T_INT && $1.tval != T_FLOAT) || ($3.tval != T_INT && $3.tval != T_FLOAT )) {
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
-                                } else if ($1 == $3) {
-                                    $$ = $1;
+                                } else if ($1.tval == $3.tval) {
+                                    $$.tval = $1.tval;
                                 } else {
-                                    $$ = T_FLOAT;
+                                    $$.tval = T_FLOAT;
                                 }
-                                if ($$ == T_FLOAT){
-                                    if ($3 == T_INT){
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
                                         code_list.push_back(I2F);
-                                    } else if ($1 == T_INT){
+                                    } else if ($1.tval == T_INT){
                                         code_list.push_back(SWAP);
                                         code_list.push_back(I2F);
                                         code_list.push_back(SWAP);
@@ -324,18 +367,18 @@ EXPRESSION:
     |   EXPRESSION
         T_DIV
         EXPRESSION          {
-                                if (($1 != T_INT && $1 != T_FLOAT) || ($3 != T_INT && $3 != T_FLOAT )) {
+                                if (($1.tval != T_INT && $1.tval != T_FLOAT) || ($3.tval != T_INT && $3.tval != T_FLOAT )) {
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
-                                } else if ($1 == $3) {
-                                    $$ = $1;
+                                } else if ($1.tval == $3.tval) {
+                                    $$.tval = $1.tval;
                                 } else {
-                                    $$ = T_FLOAT;
+                                    $$.tval = T_FLOAT;
                                 }
-                                if ($$ == T_FLOAT){
-                                    if ($3 == T_INT){
+                                if ($$.tval == T_FLOAT){
+                                    if ($3.tval == T_INT){
                                         code_list.push_back(I2F);
-                                    } else if ($1 == T_INT){
+                                    } else if ($1.tval == T_INT){
                                         code_list.push_back(SWAP);
                                         code_list.push_back(I2F);
                                         code_list.push_back(SWAP);
@@ -357,7 +400,7 @@ EXPRESSION:
     |   EXPRESSION
         T_OR
         EXPRESSION
-    |   NUMBER              { $$ = $1; }
+    |   NUMBER              { $$.tval = $1; }
     |   T_ID                {
                                 if (!id_exists($1)) {
                                   string msg = "Syntax error: Cannot find symbol: " + string($1);
@@ -367,49 +410,48 @@ EXPRESSION:
                                   yyerror(msg.c_str());
                                 } else {
                                   load($1);
-                                  $$ = symtab[$1].type;
+                                  $$.tval = symtab[$1].type;
                                 }
                             }
     |   T_LPAREN
         EXPRESSION
-        T_RPAREN            { $$ = $2; }
+        T_RPAREN            { $$.tval = $2.tval; }
     |   T_CPL
         EXPRESSION
     |   T_MINUS
         EXPRESSION      %prec T_NEG
 
 
-
 BOOL_EXPRESSION:
         EXPRESSION
         T_LT
         EXPRESSION          {
-                                get_relop("lt", $<tval>1, $<tval>3);
+                                get_relop("lt", $1.tval, $3.tval);
                             }
     |   EXPRESSION
         T_GT
         EXPRESSION          {
-                                get_relop("gt", $<tval>1, $<tval>3);
+                                get_relop("gt", $1.tval, $3.tval);
                             }
     |   EXPRESSION
         T_GE
         EXPRESSION          {
-                                get_relop("ge", $<tval>1, $<tval>3);
+                                get_relop("ge", $1.tval, $3.tval);
                             }
     |   EXPRESSION
         T_LE
         EXPRESSION          {
-                                get_relop("le", $<tval>1, $<tval>3);
+                                get_relop("le", $1.tval, $3.tval);
                             }
     |   EXPRESSION
         T_EQ
         EXPRESSION          {
-                                get_relop("eq", $<tval>1, $<tval>3);
+                                get_relop("eq", $1.tval, $3.tval);
                             }
     |   EXPRESSION
         T_NE
         EXPRESSION          {
-                                get_relop("ne", $<tval>1, $<tval>3);
+                                get_relop("ne", $1.tval, $3.tval);
                             }
     |   BOOL_EXPRESSION
         T_ANDAND
@@ -441,6 +483,7 @@ NUMBER:
                                 store_const_f($1);
                             }
 
+GOTOSTUB:                   {   $$ = code_list.size(); code_list.push_back(GOTO);   }
 
 %%
 
@@ -561,17 +604,17 @@ void get_relop(string op, int type1, int type2) {
     }
 }
 
-string get_label(int _label_cnt) {
+string get_label(int c) {
     stringstream ss;
-    ss << "L_" << _label_cnt;
+    ss << "L_" << c;
     return ss.str();
 }
 
-unordered_set<int> *merge_lists(unordered_set<int> *list1, unordered_set<int> *list2) {
+unordered_set<int> *merge(unordered_set<int> *list1, unordered_set<int> *list2) {
     if (list1 == nullptr || list2 == nullptr) {
         return nullptr;
     }
-
+    
     unordered_set<int> *union_list = new unordered_set<int>(list1->begin(), list1->end());
     union_list->insert(list2->begin(), list2->end());
     return union_list;
@@ -582,7 +625,6 @@ void backpatch(unordered_set<int> *list, int label_id) {
         return;
     }
     string label = get_label(label_id);
-
     for (int code_idx : *list) {
         code_list[code_idx] = code_list[code_idx] + " " + label;
     }
