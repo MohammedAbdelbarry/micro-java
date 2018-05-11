@@ -16,6 +16,7 @@ void write_header();
 bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
 void store(string ident);
+void store_const(int c);
 
 int var_ind = 1;
 
@@ -74,6 +75,9 @@ map<string, struct var_metainfo> symtab;
 
 
 %type   <tval>  PRIMITIVE
+%type   <tval>  NUMBER
+%type   <tval>  EXPRESSION_
+%type   <tval>  EXPRESSION
 
 
 %left       T_OROR
@@ -207,16 +211,16 @@ EXPRESSION:
         EXPRESSION_
     |   EXPRESSION
         T_PLUS
-        EXPRESSION_
+        EXPRESSION_         {cout << IADD << endl;}
     |   EXPRESSION
         T_MINUS
-        EXPRESSION_
+        EXPRESSION_         {cout << ISUB << endl;}
     |   EXPRESSION
         T_MUL
-        EXPRESSION_
+        EXPRESSION_         {cout << IMUL << endl;}
     |   EXPRESSION
         T_DIV
-        EXPRESSION_
+        EXPRESSION_         {cout << IDIV << endl;}
     |   EXPRESSION
         T_MOD
         EXPRESSION_
@@ -278,7 +282,7 @@ BOOL_EXPRESSION_:
     |   T_BOOL_LITERAL
 
 NUMBER:
-        T_INT_CONST
+        T_INT_CONST         { store_const($1); }
     |   T_FLOAT_CONST
 
 
@@ -311,6 +315,16 @@ bool id_exists(string sval) {
 
 void store(string ident) {
     cout << ISTORE << "_" << symtab[ident].ind << endl;
+}
+
+void store_const(int c) {
+    if (c >= 0 && c <= 5){
+        cout << ICONST << "_" << c << endl;
+    } else if (c == -1) {
+        cout << ICONST << "_m1";
+    } else {
+        cout << BIPUSH << "\t\t" << c << endl;
+    }
 }
 
 // void declare_new_var(const int tval, const char *sval) {
