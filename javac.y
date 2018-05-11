@@ -188,7 +188,28 @@ ASSIGNMENT:
 EXPRESSION:
         EXPRESSION_
     |   EXPRESSION
-        ARITH_OPERATOR
+        T_PLUS
+        EXPRESSION_
+    |   EXPRESSION
+        T_MINUS
+        EXPRESSION_
+    |   EXPRESSION
+        T_MUL
+        EXPRESSION_
+    |   EXPRESSION
+        T_DIV
+        EXPRESSION_
+    |   EXPRESSION
+        T_MOD
+        EXPRESSION_
+    |   EXPRESSION
+        T_AND
+        EXPRESSION_
+    |   EXPRESSION
+        T_XOR
+        EXPRESSION_
+    |   EXPRESSION
+        T_OR
         EXPRESSION_
 
 EXPRESSION_:
@@ -205,10 +226,28 @@ EXPRESSION_:
 
 BOOL_EXPRESSION:
         EXPRESSION
-        REL_OPERATOR
+        T_LT
+        EXPRESSION
+    |   EXPRESSION
+        T_GT
+        EXPRESSION
+    |   EXPRESSION
+        T_GE
+        EXPRESSION
+    |   EXPRESSION
+        T_LE
+        EXPRESSION
+    |   EXPRESSION
+        T_EQ
+        EXPRESSION
+    |   EXPRESSION
+        T_NE
         EXPRESSION
     |   BOOL_EXPRESSION
-        BOOL_OPERATOR
+        T_ANDAND
+        BOOL_EXPRESSION_
+    |   BOOL_EXPRESSION
+        T_OROR
         BOOL_EXPRESSION_
     |   BOOL_EXPRESSION_
 
@@ -233,7 +272,6 @@ REL_OPERATOR:
 
 BOOL_OPERATOR:
         T_ANDAND | T_OROR
-
 %%
 
 int main() {
