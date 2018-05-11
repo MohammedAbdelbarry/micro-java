@@ -1,8 +1,9 @@
 %{
-// #include <bytecode.h>
 #include <iostream>
+#include <sstream>
 #include <cstring>
-#include <map>
+#include <unordered_map>
+#include <vector>
 #include "bytecode.h"
 using namespace std;
 
@@ -12,7 +13,7 @@ extern "C" FILE *yyin;
 
 void yyerror(const char *s);
 
-void write_header();
+string get_header();
 bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
 void store(string ident);
@@ -21,6 +22,9 @@ void store_const(int c);
 void store_const_f(float c);
 void load(string ident);
 void adjust_types(int t1, int t2);
+void get_relop(string op, int type1, int type2);
+string get_declaration_code(const int tval, const string sval);
+string get_label();
 
 int var_ind = 1;
 int obj_ind = 2;
@@ -39,8 +43,9 @@ struct assignment_metainfo {
 extern char* yytext;
 extern int yylineno;
 
-map<string, struct var_metainfo> symtab;
-
+unordered_map<string, struct var_metainfo> symtab;
+vector<string> code_list;
+int label_cnt = 0;
 %}
 %start METHOD_BODY
 
@@ -90,9 +95,12 @@ map<string, struct var_metainfo> symtab;
 
 
 %type   <tval>  PRIMITIVE
+%type   <tval>   DECLARATION
 %type   <tval>  NUMBER
 %type   <tval>  EXPRESSION
 %type   <assignment_metainfo>  ASSIGNMENT
+%type   <tval>  BOOL_EXPRESSION
+
 
 
 %left       T_OROR
@@ -107,11 +115,12 @@ map<string, struct var_metainfo> symtab;
 %left       T_NEG T_CPL T_NOT
 %right      T_INC T_DEC
 
-
 %%
 
-METHOD_BODY:                {   write_header();  }
-        STATEMENT_LIST
+METHOD_BODY:
+        STATEMENT_LIST      {   
+                                stringstream ss;
+                                ss << get_header();  }
 
 STATEMENT_LIST:
         STATEMENT
@@ -129,16 +138,20 @@ DECLARATION:
         T_ID
         T_SEMICOL           {
                                 int tval = $<tval>1;
-                                string sval = $<sval>2;
+                                string sval ($<sval>2);
 
                                 if (id_exists(sval)) {
-                                    string msg = "Syntax error: Redeclaration of variable: " + string(sval);
+                                    string msg = "syntax error: Redeclaration of variable: " + string(sval);
                                     yyerror(msg.c_str());
                                 } else {
                                     symtab[sval] = (struct var_metainfo) {var_ind, tval, false};
+
+                                    string code_ = get_declaration_code(tval, sval);
+                                    
+                                    code_list.push_back(code_);
+                                    
                                     var_ind++;
                                 }
-
                             }
     |   PRIMITIVE
         ASSIGNMENT          {
@@ -158,7 +171,7 @@ DECLARATION:
                                       store(sval);
                                     else
                                       store_f(sval);
-                                    var_ind++;
+                                      var_ind++;
                                 }
                             }
 
@@ -248,7 +261,7 @@ EXPRESSION:
                                 } else {
                                     $$ = T_FLOAT;
                                 }
-                                cout << IADD << endl;
+                                code_list.push_back(IADD);
                             }
     |   EXPRESSION
         T_MINUS
@@ -261,7 +274,7 @@ EXPRESSION:
                                 } else {
                                     $$ = T_FLOAT;
                                 }
-                                cout << ISUB << endl;
+                                code_list.push_back(ISUB);
                             }
     |   EXPRESSION
         T_MUL
@@ -274,6 +287,7 @@ EXPRESSION:
                                 } else {
                                     $$ = T_FLOAT;
                                 }
+				code_list.push_back(IMUL);
                             }
     |   EXPRESSION
         T_DIV
@@ -286,6 +300,7 @@ EXPRESSION:
                                 } else {
                                     $$ = T_FLOAT;
                                 }
+				code_list.push_back(IDIV);
                             }
     |   EXPRESSION
         T_MOD
@@ -325,38 +340,54 @@ EXPRESSION:
 BOOL_EXPRESSION:
         EXPRESSION
         T_LT
-        EXPRESSION
+        EXPRESSION          {
+                                get_relop("lt", $<tval>1, $<tval>3);
+                            }
     |   EXPRESSION
         T_GT
-        EXPRESSION
+        EXPRESSION          {
+                                get_relop("gt", $<tval>1, $<tval>3);
+                            }
     |   EXPRESSION
         T_GE
-        EXPRESSION
+        EXPRESSION          {
+                                get_relop("ge", $<tval>1, $<tval>3);
+                            }
     |   EXPRESSION
         T_LE
-        EXPRESSION
+        EXPRESSION          {
+                                get_relop("le", $<tval>1, $<tval>3);
+                            }
     |   EXPRESSION
         T_EQ
-        EXPRESSION
+        EXPRESSION          {
+                                get_relop("eq", $<tval>1, $<tval>3);
+                            }
     |   EXPRESSION
         T_NE
-        EXPRESSION
+        EXPRESSION          {
+                                get_relop("ne", $<tval>1, $<tval>3);
+                            }
     |   BOOL_EXPRESSION
         T_ANDAND
-        BOOL_EXPRESSION_
+        BOOL_EXPRESSION     {
+                                //TODO: GENERATE THE CODE!!
+                            }
     |   BOOL_EXPRESSION
         T_OROR
-        BOOL_EXPRESSION_
-    |   BOOL_EXPRESSION_
-
-BOOL_EXPRESSION_:
+        BOOL_EXPRESSION     {
+                                //TODO: GENERATE THE CODE!!
+                            }
     |   T_NOT
-        BOOL_EXPRESSION
+        BOOL_EXPRESSION     {
+                                //TODO: COMMIT SUICIDE :/
+                            }
     |   T_LPAREN
         BOOL_EXPRESSION
         T_RPAREN
     |   T_BOOL_LITERAL
 
+    
 NUMBER:
         T_INT_CONST         {
                                 $$ = T_INT;
@@ -368,14 +399,6 @@ NUMBER:
                             }
 
 
-ARITH_OPERATOR:
-        T_PLUS | T_MINUS | T_MUL | T_DIV | T_MOD | T_AND | T_OR
-
-REL_OPERATOR:
-        T_LT | T_GT | T_LE | T_GE | T_EQ | T_NE
-
-BOOL_OPERATOR:
-        T_ANDAND | T_OROR
 %%
 
 int main() {
@@ -383,12 +406,28 @@ int main() {
     return 0;
 }
 
-void write_header() {
+string get_header() {
+    stringstream ss;
+    ss << SOURCE << " input.txt" << endl;
+    ss << CLASS << " " << PUBLIC << " " << "test" << endl;
+    ss << SUPER << " java/lang/object" << endl;
+    ss << METHOD << " " << PUBLIC << " <init>()V" << endl;
+    ss << INVOKE << " java/lang/object/<init>()V" << endl;
+    ss << RETURN << endl;
+    ss << END << " method" << endl;
 
+    ss << METHOD << " " << PUBLIC << " " << STATIC << " main([Ljava/lang/String;)V" << endl;
+    ss << LIMIT << " locals 100" << endl;
+    ss << LIMIT << " stack 100" << endl;
+
+    return ss.str();
 }
 
 void yyerror (const char *s) {
-    cout << yylineno << ": " << s << " near " << yytext << endl;
+    cout << yylineno << ": " << s << " near " << "'" << yytext << "''" << endl;
+    for (string line : code_list) {
+        cout << line << endl;
+    }
 }
 
 bool id_exists(string sval) {
@@ -396,7 +435,9 @@ bool id_exists(string sval) {
 }
 
 void store(string ident) {
-    cout << ISTORE << "_" << symtab[ident].ind << endl;
+    stringstream ss;
+    ss << ISTORE << "_" << symtab[ident].ind;
+    code_list.push_back(ss.str());
 }
 
 void store_f(string ident) {
@@ -408,13 +449,15 @@ void store_f(string ident) {
 }
 
 void store_const(int c) {
+    stringstream ss;
     if (c >= 0 && c <= 5){
-        cout << ICONST << "_" << c << endl;
+        ss << ICONST << "_" << c;
     } else if (c == -1) {
-        cout << ICONST << "_m1" << endl;
+        ss << ICONST << "_m1";
     } else {
-        cout << BIPUSH << "\t\t" << c << endl;
+        ss << BIPUSH << " " << c;
     }
+    code_list.push_back(ss.str());
 }
 
 void store_const_f(float c) {
@@ -422,15 +465,20 @@ void store_const_f(float c) {
 }
 
 void load(string ident) {
+    stringstream ss;
+
     if (symtab[ident].type == T_INT){
-      cout << ILOAD << "_" << symtab[ident].ind << endl;
-    } else {
+      ss << ILOAD << "_" << symtab[ident].ind << endl;
+    } 
+    else {
       if (symtab[ident].ind >= 0 && symtab[ident].ind <= 3) {
-          cout << FLOAD << "_" << symtab[ident].ind << endl;
-      } else {
-          cout << FLOAD << "\t\t" << symtab[ident].ind << endl;
+          ss << FLOAD << "_" << symtab[ident].ind << endl;
+      } 
+      else {
+          ss << FLOAD << "\t\t" << symtab[ident].ind << endl;
       }
     }
+    code_list.push_back(ss.str());
 }
 
 void adjust_types(int t1, int t2) {
@@ -457,3 +505,54 @@ void adjust_types(int t1, int t2) {
 //             break;
 //     }
 // }
+void clear(stringstream &ss) {
+    ss.clear();
+    ss.str(string());
+}
+
+void get_relop(string op, int type1, int type2) {
+    string true_label = get_label();
+    stringstream code_stream;
+    code_stream << IFCMP << op << " " << true_label;
+    code_list.push_back(code_stream.str());
+    clear(code_stream);
+    code_stream << ICONST << "_" << 0;
+    code_list.push_back(code_stream.str());
+    clear(code_stream);
+    code_stream << GOTO << " " << 1;
+    code_list.push_back(code_stream.str());
+    clear(code_stream);
+    code_stream << true_label << ": " << ICONST << "_" << 1;
+    code_list.push_back(code_stream.str());
+    clear(code_stream);
+    
+    if (type1 != type2) {
+    
+    } else {
+    }
+}
+
+string get_label() {
+    stringstream ss;
+    ss << "L_" << (label_cnt++);
+    return ss.str();
+}
+
+string get_declaration_code(const int tval, const string sval) {
+    stringstream ss;
+
+    switch (tval) {
+        case T_INT:
+            ss << ICONST << "_0";
+            ss << ISTORE << " " << var_ind;
+            break;
+        case T_FLOAT:
+            ss << FCONST << "_0";
+            ss << FSTORE << " " << var_ind;
+        default:
+            yyerror("syntax error: Unmatched type!");
+            break;
+    }
+
+    return ss.str();
+}
