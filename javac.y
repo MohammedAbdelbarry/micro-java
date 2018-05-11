@@ -23,7 +23,7 @@ void store_const(int c);
 void store_const_f(float c);
 void load(string ident);
 void adjust_types(int t1, int t2);
-void get_relop(string op, int type1, int type2);
+void get_relop(string op, int type1, int type2, unordered_set<int> *true_set, unordered_set<int> *false_set);
 string get_declaration_code(const int tval, const string sval);
 string get_label(int);
 void backpatch(unordered_set<int> *list, int label_id);
@@ -200,7 +200,7 @@ DECLARATION:
                                 }
                             }
 
-MARKER:                     {   $$ = label_cnt; code_list.push_back(get_label(label_cnt++));  }
+MARKER:                     {   $$ = label_cnt; code_list.push_back(get_label(label_cnt++)); cout << "arker" << endl; }
 
 PRIMITIVE:
         T_INT               {   $$ = T_INT;      }
@@ -386,32 +386,44 @@ BOOL_EXPRESSION:
         EXPRESSION
         T_LT
         EXPRESSION          {
-                                get_relop("lt", $1.tval, $3.tval);
+                                $$.true_set = new unordered_set<int>();
+                                $$.false_set = new unordered_set<int>();
+                                get_relop("lt", $1.tval, $3.tval, $$.true_set, $$.false_set);
                             }
     |   EXPRESSION
         T_GT
         EXPRESSION          {
-                                get_relop("gt", $1.tval, $3.tval);
+                                $$.true_set = new unordered_set<int>();
+                                $$.false_set = new unordered_set<int>();
+                                get_relop("gt", $1.tval, $3.tval, $$.true_set, $$.false_set);
                             }
     |   EXPRESSION
         T_GE
         EXPRESSION          {
-                                get_relop("ge", $1.tval, $3.tval);
+                                $$.true_set = new unordered_set<int>();
+                                $$.false_set = new unordered_set<int>();
+                                get_relop("ge", $1.tval, $3.tval, $$.true_set, $$.false_set);
                             }
     |   EXPRESSION
         T_LE
         EXPRESSION          {
-                                get_relop("le", $1.tval, $3.tval);
+                                $$.true_set = new unordered_set<int>();
+                                $$.false_set = new unordered_set<int>();
+                                get_relop("le", $1.tval, $3.tval, $$.true_set, $$.false_set);
                             }
     |   EXPRESSION
         T_EQ
         EXPRESSION          {
-                                get_relop("eq", $1.tval, $3.tval);
+                                $$.true_set = new unordered_set<int>();
+                                $$.false_set = new unordered_set<int>();
+                                get_relop("eq", $1.tval, $3.tval, $$.true_set, $$.false_set);
                             }
     |   EXPRESSION
         T_NE
         EXPRESSION          {
-                                get_relop("ne", $1.tval, $3.tval);
+                                $$.true_set = new unordered_set<int>();
+                                $$.false_set = new unordered_set<int>();
+                                get_relop("ne", $1.tval, $3.tval, $$.true_set, $$.false_set);
                             }
     |   BOOL_EXPRESSION
         T_ANDAND
@@ -556,21 +568,22 @@ void clear(stringstream &ss) {
     ss.str(string());
 }
 
-void get_relop(string op, int type1, int type2) {
-    string true_label = get_label(label_cnt++);
+void get_relop(string op, int type1, int type2, unordered_set<int> *true_set, unordered_set<int> *false_set) {
+    if (true_set == nullptr || false_set == nullptr)
+        return;
+    
     stringstream code_stream;
-    code_stream << IFCMP << op << " " << true_label;
+    code_stream << IFCMP << op;
+    true_set->insert(code_list.size());
     code_list.push_back(code_stream.str());
-    clear(code_stream);
-    code_stream << ICONST << "_" << 0;
-    code_list.push_back(code_stream.str());
+    
     clear(code_stream);
     code_stream << GOTO;
+    false_set->insert(code_list.size());
     code_list.push_back(code_stream.str());
+    
     clear(code_stream);
-    code_stream << true_label << ": " << ICONST << "_" << 1;
-    code_list.push_back(code_stream.str());
-    clear(code_stream);
+    
     
     if (type1 != type2) {
     
