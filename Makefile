@@ -1,7 +1,7 @@
 all: javac
 
 javac.tab.c javac.tab.h: javac.y
-	bison -v -d -Dparse.trace javac.y
+	bison -v -d --debug javac.y
 
 javac.yy.c: javalex.l javac.tab.h
 	flex -v -d -o javac.yy.c javalex.l
