@@ -148,8 +148,12 @@ METHOD_BODY:                {
 
 STATEMENT_LIST:
         STATEMENT
-    |   STATEMENT_LIST
-        STATEMENT
+    |   STATEMENT
+        MARKER
+        STATEMENT_LIST      {
+                                backpatch($1.next_set, $2);
+                                $$.next_set = $3.next_set;
+                            }
 
 STATEMENT:
         DECLARATION         {   $$.next_set = new unordered_set<int>();  }
@@ -197,7 +201,7 @@ DECLARATION:
                                 }
                             }
 
-MARKER:                     {   $$ = label_cnt; code_list.push_back(get_label(label_cnt++)); cout << "arker" << endl; }
+MARKER:                     {   $$ = label_cnt; code_list.push_back(get_label(label_cnt++) + ":");}
 
 PRIMITIVE:
         T_INT               {   $$ = T_INT;      }
@@ -232,9 +236,9 @@ IF:
         T_SEMICOL
 
 WHILE:
+        MARKER
         T_WHILE
         T_LPAREN
-        MARKER
         BOOL_EXPRESSION
         T_RPAREN
         T_LBRACE
@@ -242,20 +246,13 @@ WHILE:
         STATEMENT_LIST
         T_RBRACE            {
                                 stringstream ss;
-                                ss << GOTO << " " << get_label($3);
+                                ss << GOTO << " " << get_label($1);
                                 
-                                backpatch($8.next_set, $3);
+                                backpatch($8.next_set, $1);
                                 backpatch($4.true_set, $7);
 
                                 $$.next_set = $4.false_set;
                             }
-    |   T_WHILE
-        T_LPAREN
-        BOOL_EXPRESSION
-        T_RPAREN
-        T_SEMICOL
-
-
 ASSIGNMENT_:
         T_ID
         T_ASSIGN
