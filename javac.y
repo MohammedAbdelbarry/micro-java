@@ -500,9 +500,25 @@ GOTOSTUB:                   {   $$ = code_list.size(); code_list.push_back(GOTO)
 
 %%
 
+void print_bytecode(ostream &stream) {
+    for (string line : code_list) {
+        stream << line << endl;
+    }
+}
+
 int main() {
     yydebug = 1;
-    yyparse();
+    FILE *myfile = fopen("src.java", "r");
+    if (!myfile) {
+		cout << "Failed to open file" << endl;
+		return -1;
+	}
+	yyin = myfile;
+
+    do {
+		yyparse();
+	} while (!feof(yyin));
+	print_bytecode(cout);
     return 0;
 }
 
@@ -525,9 +541,6 @@ string get_header() {
 
 void yyerror (const char *s) {
     cout << yylineno << ": " << s << " near " << "'" << yytext << "''" << endl;
-    for (string line : code_list) {
-        cout << line << endl;
-    }
 }
 
 bool id_exists(string sval) {
