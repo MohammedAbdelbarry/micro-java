@@ -27,7 +27,7 @@ void get_relop(string op, int type1, int type2);
 string get_declaration_code(const int tval, const string sval);
 string get_label(int);
 void backpatch(unordered_set<int> list, int label_id);
-unordered_set<int> merge_lists(unordered_set<int> list1, unordered_set<int> list2);
+unordered_set<int> merge(unordered_set<int> list1, unordered_set<int> list2);
 
 int var_ind = 1;
 int obj_ind = 2;
@@ -63,6 +63,13 @@ int label_cnt = 0;
         int type;
         char *sval;
     } assignment_metainfo;
+    struct {
+        unordered_set<int> *next_set;
+    } stmtval;
+    struct {
+        unordered_set<int> *true_set;
+        unordered_set<int> *false_set;
+    } exprval;
 }
 %token  <ival>  T_INT_CONST
 %token  <fval>  T_FLOAT_CONST
@@ -103,7 +110,14 @@ int label_cnt = 0;
 %type   <tval>  EXPRESSION
 %type   <assignment_metainfo>  ASSIGNMENT
 %type   <tval>  BOOL_EXPRESSION
+%type   <ival>  MARKER
 
+%type   <stmtval>   STATEMENT_LIST
+%type   <stmtval>   STATEMENT
+%type   <exprval>   EXPRESSION
+%type   <exprval>   BOOL_EXPRESSION
+%type   <exprval>   WHILE
+%type   <exprval>   IF
 
 
 %left       T_OROR
@@ -178,6 +192,8 @@ DECLARATION:
                                 }
                             }
 
+MARKER:                     {   $$ = label_cnt; code_list.push_back(get_label(label_cnt++));  }
+
 PRIMITIVE:
         T_INT               {   $$ = T_INT;      }
     |   T_FLOAT             {   $$ = T_FLOAT;    }
@@ -186,15 +202,24 @@ PRIMITIVE:
 IF:
         T_IF
         T_LPAREN
-        EXPRESSION
+        BOOL_EXPRESSION
         T_RPAREN
         T_LBRACE
+        MARKER
         STATEMENT_LIST
+        GOTOSTUB
         T_RBRACE
         T_ELSE
         T_LBRACE
+        MARKER
         STATEMENT_LIST
-        T_RBRACE
+        T_RBRACE            {
+                                backpatch($3.true_set, $6);
+                                backpatch($3.false_set, $12);
+
+                                $$.next_set = merge($7.next_set, $13.next_set);
+                                $$.next_set.push_back($8);
+                            }
     |   T_IF
         T_LPAREN
         EXPRESSION
@@ -204,11 +229,21 @@ IF:
 WHILE:
         T_WHILE
         T_LPAREN
+        MARKER
         BOOL_EXPRESSION
         T_RPAREN
         T_LBRACE
+        MARKER
         STATEMENT_LIST
-        T_RBRACE
+        T_RBRACE            {
+                                stringstream ss;
+                                ss << GOTO << " " << get_label($3);
+                                
+                                backpatch($8.next_set, $3);
+                                backpatch($4.true_set, $7);
+
+                                $$.next_set = $4.false_set;
+                            }
     |   T_WHILE
         T_LPAREN
         BOOL_EXPRESSION
@@ -339,7 +374,6 @@ EXPRESSION:
         EXPRESSION      %prec T_NEG
 
 
-
 BOOL_EXPRESSION:
         EXPRESSION
         T_LT
@@ -401,6 +435,7 @@ NUMBER:
                                 store_const_f($1);
                             }
 
+GOTOSTUB:                   {   $$ = code_list.size(); code_list.push_back(GOTO);   }
 
 %%
 
@@ -535,9 +570,9 @@ void get_relop(string op, int type1, int type2) {
     }
 }
 
-string get_label(int _label_cnt) {
+string get_label(int c) {
     stringstream ss;
-    ss << "L_" << _label_cnt;
+    ss << "L_" << c;
     return ss.str();
 }
 
@@ -560,7 +595,7 @@ string get_declaration_code(const int tval, const string sval) {
     return ss.str();
 }
 
-unordered_set<int> merge_lists(unordered_set<int> list1, unordered_set<int> list2) {
+unordered_set<int> merge(unordered_set<int> list1, unordered_set<int> list2) {
     unordered_set<int> union_list(list1.begin(), list1.end());
     union_list.insert(list2.begin(), list2.end());
     return union_list;
