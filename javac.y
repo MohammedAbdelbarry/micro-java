@@ -175,9 +175,30 @@ ASSIGNMENT:
 EXPRESSION:
         EXPRESSION_
     |   EXPRESSION
-        ARITH_OPERATOR
+        T_PLUS
         EXPRESSION_
-
+    |   EXPRESSION
+        T_MINUS
+        EXPRESSION_
+    |   EXPRESSION
+        T_MUL
+        EXPRESSION_
+    |   EXPRESSION
+        T_DIV
+        EXPRESSION_
+    |   EXPRESSION
+        T_MOD
+        EXPRESSION_
+    |   EXPRESSION
+        T_AND
+        EXPRESSION_
+    |   EXPRESSION
+        T_XOR
+        EXPRESSION_
+    |   EXPRESSION
+        T_OR
+        EXPRESSION_    
+    
 EXPRESSION_:
         NUMBER
     |   T_ID
@@ -192,10 +213,28 @@ EXPRESSION_:
 
 BOOL_EXPRESSION:
         EXPRESSION
-        REL_OPERATOR
+        T_LT
+        EXPRESSION
+    |   EXPRESSION
+        T_GT
+        EXPRESSION
+    |   EXPRESSION
+        T_GE
+        EXPRESSION
+    |   EXPRESSION
+        T_LE
+        EXPRESSION
+    |   EXPRESSION
+        T_EQ
+        EXPRESSION
+    |   EXPRESSION
+        T_NE
         EXPRESSION
     |   BOOL_EXPRESSION
-        BOOL_OPERATOR
+        T_ANDAND
+        BOOL_EXPRESSION_
+    |   BOOL_EXPRESSION
+        T_OROR
         BOOL_EXPRESSION_
     |   BOOL_EXPRESSION_
     
@@ -210,16 +249,6 @@ BOOL_EXPRESSION_:
 NUMBER:
         T_INT_CONST
     |   T_FLOAT_CONST
-
-        
-ARITH_OPERATOR:
-        T_PLUS | T_MINUS | T_MUL | T_DIV | T_MOD | T_AND | T_OR
-    
-REL_OPERATOR:
-        T_LT | T_GT | T_LE | T_GE | T_EQ | T_NE
-
-BOOL_OPERATOR:
-        T_ANDAND | T_OROR
 
 %%
 
