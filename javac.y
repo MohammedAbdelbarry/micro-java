@@ -4,6 +4,7 @@
 #include <cstring>
 #include <unordered_map>
 #include <vector>
+#include <unordered_set>
 #include "bytecode.h"
 using namespace std;
 
@@ -24,7 +25,9 @@ void load(string ident);
 void adjust_types(int t1, int t2);
 void get_relop(string op, int type1, int type2);
 string get_declaration_code(const int tval, const string sval);
-string get_label();
+string get_label(int);
+void backpatch(unordered_set<int> list, int label_id);
+unordered_set<int> merge_lists(unordered_set<int> list1, unordered_set<int> list2);
 
 int var_ind = 1;
 int obj_ind = 2;
@@ -511,7 +514,7 @@ void clear(stringstream &ss) {
 }
 
 void get_relop(string op, int type1, int type2) {
-    string true_label = get_label();
+    string true_label = get_label(label_cnt++);
     stringstream code_stream;
     code_stream << IFCMP << op << " " << true_label;
     code_list.push_back(code_stream.str());
@@ -532,9 +535,9 @@ void get_relop(string op, int type1, int type2) {
     }
 }
 
-string get_label() {
+string get_label(int _label_cnt) {
     stringstream ss;
-    ss << "L_" << (label_cnt++);
+    ss << "L_" << _label_cnt;
     return ss.str();
 }
 
@@ -555,4 +558,18 @@ string get_declaration_code(const int tval, const string sval) {
     }
 
     return ss.str();
+}
+
+unordered_set<int> merge_lists(unordered_set<int> list1, unordered_set<int> list2) {
+    unordered_set<int> union_list(list1.begin(), list1.end());
+    union_list.insert(list2.begin(), list2.end());
+    return union_list;
+}
+
+void backpatch(unordered_set<int> list, int label_id) {
+    string label = get_label(label_id);
+    
+    for (int code_idx : list) {
+        code_list[code_idx] = label + ": " + code_list[code_idx];
+    }
 }
