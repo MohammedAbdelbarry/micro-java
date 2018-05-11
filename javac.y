@@ -26,7 +26,7 @@ struct var_metainfo {
 extern char* yytext;
 extern int yylineno;
 
-map<char *, var_metainfo> symtab;
+map<char *, struct var_metainfo> symtab;
 
 %}
 %start METHOD_BODY
@@ -83,7 +83,8 @@ map<char *, var_metainfo> symtab;
 %nonassoc   T_LE T_LT T_GE T_GT
 %left       T_AND
 %left       T_PLUS T_MINUS
-%left       T_MUL T_DIV T_MOD
+%left       T_MUL T_DIV T_MOD   
+%left       T_NEG T_CPL T_NOT
 %right      T_INC T_DEC
 
 
@@ -185,6 +186,8 @@ EXPRESSION_:
         T_RPAREN
     |   T_CPL
         EXPRESSION
+    |   T_MINUS
+        EXPRESSION      %prec T_NEG
         
 
 BOOL_EXPRESSION:

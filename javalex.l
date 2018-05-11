@@ -23,8 +23,8 @@ for         "for"
 if          "if"
 else        "else"
 bin         "true"|"false"
-inum        {sign}?{digit}+
-fnum        {sign}?(({digit}*\.{digit}+)|({digit}+\.{digit}*)){exp}?
+inum        {digit}+
+fnum        (({digit}*\.{digit}+)|({digit}+\.{digit}*)){exp}?
 exp         [eE]{sign}?{digit}+
 
 id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
