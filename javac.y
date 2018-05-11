@@ -12,7 +12,7 @@ extern "C" FILE *yyin;
 
 void yyerror(const char *s);
 
-void write_header();
+string get_header();
 bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
 void store(string ident);
@@ -106,8 +106,10 @@ map<string, struct var_metainfo> symtab;
 
 %%
 
-METHOD_BODY:                {   write_header();  }
-        STATEMENT_LIST
+METHOD_BODY:
+        STATEMENT_LIST      {   
+                                stringstream ss;
+                                ss << get_header();  }
 
 STATEMENT_LIST:
         STATEMENT
@@ -331,8 +333,21 @@ int main() {
     return 0;
 }
 
-void write_header() {
+string get_header() {
+    stringstream ss;
+    ss << SOURCE << " input.txt" << endl;
+    ss << CLASS << " " << PUBLIC << " " << "test" << endl;
+    ss << SUPER << " java/lang/object" << endl;
+    ss << METHOD << " " << PUBLIC << " <init>()V" << endl;
+    ss << INVOKE << " java/lang/object/<init>()V" << endl;
+    ss << RETURN << endl;
+    ss << END << " method" << endl;
 
+    ss << METHOD << " " << PUBLIC << " " << STATIC << " main([Ljava/lang/String;)V" << endl;
+    ss << LIMIT << " locals 100" << endl;
+    ss << LIMIT << " stack 100" << endl;
+
+    return ss.str();
 }
 
 void yyerror (const char *s) {
