@@ -138,10 +138,13 @@ int label_cnt = 0;
 
 %%
 
-METHOD_BODY:
-        STATEMENT_LIST      {   
+METHOD_BODY:                {   
                                 stringstream ss;
                                 ss << get_header();
+                            }
+        STATEMENT_LIST
+        MARKER              {
+                                backpatch($2.next_set, $3);
                             }
 
 STATEMENT_LIST:
@@ -150,10 +153,10 @@ STATEMENT_LIST:
         STATEMENT
 
 STATEMENT:
-        DECLARATION
-    |   IF
-    |   WHILE
-    |   ASSIGNMENT_
+        DECLARATION         {   $$.next_set = new unordered_set<int>();  }
+    |   ASSIGNMENT_         {   $$.next_set = new unordered_set<int>();  }
+    |   IF                  {   $$.next_set = $1.next_set;               }
+    |   WHILE               {   $$.next_set = $1.next_set;               }
 
 DECLARATION:
         PRIMITIVE
