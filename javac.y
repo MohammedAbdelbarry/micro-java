@@ -1,6 +1,6 @@
 %{
-// #include <bytecode.h>
 #include <iostream>
+#include <sstream>
 #include <cstring>
 #include <map>
 #include "bytecode.h"
@@ -17,8 +17,15 @@ bool id_exists(string sval);
 void declare_new_var(const int tval, const char *sval);
 void store(string ident);
 void store_const(int c);
+struct code get_declaration_code(const int tval, const string sval);
+
 
 int var_ind = 1;
+
+struct code {
+    string code;
+    int codelen;
+};
 
 struct var_metainfo {
     int ind;
@@ -40,6 +47,10 @@ map<string, struct var_metainfo> symtab;
     bool bval;
     char *sval;
     int tval;
+    struct {
+        char *code;
+        int codelen;
+    } codeval;
 }
 %token  <ival>  T_INT_CONST
 %token  <fval>  T_FLOAT_CONST
@@ -75,6 +86,7 @@ map<string, struct var_metainfo> symtab;
 
 
 %type   <tval>  PRIMITIVE
+%type   <codeval>   DECLARATION
 %type   <tval>  NUMBER
 %type   <tval>  EXPRESSION_
 %type   <tval>  EXPRESSION
@@ -91,7 +103,6 @@ map<string, struct var_metainfo> symtab;
 %left       T_MUL T_DIV T_MOD
 %left       T_NEG T_CPL T_NOT
 %right      T_INC T_DEC
-
 
 %%
 
@@ -114,16 +125,23 @@ DECLARATION:
         T_ID
         T_SEMICOL           {
                                 int tval = $<tval>1;
-                                string sval = $<sval>2;
+                                string sval ($<sval>2);
 
                                 if (id_exists(sval)) {
-                                    string msg = "Syntax error: Redeclaration of variable: " + string(sval);
+                                    string msg = "syntax error: Redeclaration of variable: " + string(sval);
                                     yyerror(msg.c_str());
                                 } else {
                                     symtab[sval] = (struct var_metainfo) {var_ind, tval};
+
+                                    struct code code_ = get_declaration_code(tval, sval);
+                                    
+                                    $<codeval.code>$ = (char *) code_.code.c_str();
+                                    $<codeval.codelen>$ = code_.codelen;
+
+                                    cout << $<codeval.code>$ << endl;
+
                                     var_ind++;
                                 }
-
                             }
     |   PRIMITIVE
         ASSIGNMENT          {
@@ -134,11 +152,11 @@ DECLARATION:
                                     string msg = "Syntax error: Redeclaration of variable: " + string(sval);
                                     yyerror(msg.c_str());
                                 } else {
+                                    //TODO: ICONST WITH VALUE OF INITIALIZATION.
                                     symtab[sval] = (struct var_metainfo) {var_ind, tval};
                                     store(sval);
                                     var_ind++;
                                 }
-
                             }
 
 PRIMITIVE:
@@ -235,8 +253,20 @@ EXPRESSION:
         EXPRESSION_
 
 EXPRESSION_:
-        NUMBER
-    |   T_ID
+        T_INT_CONST         {   stringstream ss;
+                                ss << LDC << " ";
+                                ss << $1;
+                                $<codeval.code>$ = (char *) ss.str().c_str();
+                                $<codeval.codelen>$ = 2;
+                            }
+    |   T_FLOAT_CONST       {
+                                stringstream ss;
+                                ss << LDC << " ";
+                                ss << $1;
+                                $<codeval.code>$ = (char *) ss.str().c_str();
+                                $<codeval.codelen>$ = 2;
+                            }
+    |   T_ID    
     |   T_LPAREN
         EXPRESSION
         T_RPAREN
@@ -306,7 +336,7 @@ void write_header() {
 }
 
 void yyerror (const char *s) {
-    cout << yylineno << ": " << s << " near " << yytext << endl;
+    cout << yylineno << ": " << s << " near " << "'" << yytext << "''" << endl;
 }
 
 bool id_exists(string sval) {
@@ -327,21 +357,21 @@ void store_const(int c) {
     }
 }
 
-// void declare_new_var(const int tval, const char *sval) {
-//     switch(tval) {
-//         case T_INT:
-//             cout << ICONST << "_0" << endl;
-//             cout << ISTORE << " " << var_ind << endl;
-//             break;
-//         case T_FLOAT:
-//             cout << FCONST << "_0" << endl;
-//             cout << FSTORE << " " << var_ind << endl;
-//             break;
-//         case T_BOOLEAN:
-//             // TODO: Haven't found yet a matching mnemonic.
-//             break;
-//         default:
-//             yyerror("syntax error: unmatched type!");
-//             break;
-//     }
-// }
+struct code get_declaration_code(const int tval, const string sval) {
+    stringstream ss;
+
+    switch (tval) {
+        case T_INT:
+            ss << ICONST << "_0" << endl;
+            ss << ISTORE << " " << var_ind << endl;
+            break;
+        case T_FLOAT:
+            ss << FCONST << "_0" << endl;
+            ss << FSTORE << " " << var_ind << endl;
+        default:
+            yyerror("syntax error: Unmatched type!");
+            break;
+    }
+
+    return code {ss.str(), 2};
+}
