@@ -26,8 +26,8 @@ void adjust_types(int t1, int t2);
 void get_relop(string op, int type1, int type2);
 string get_declaration_code(const int tval, const string sval);
 string get_label(int);
-void backpatch(unordered_set<int> list, int label_id);
-unordered_set<int> merge_lists(unordered_set<int> list1, unordered_set<int> list2);
+void backpatch(unordered_set<int> *list, int label_id);
+unordered_set<int> *merge_lists(unordered_set<int> *list1, unordered_set<int> *list2);
 
 int var_ind = 1;
 int obj_ind = 2;
@@ -522,7 +522,7 @@ void get_relop(string op, int type1, int type2) {
     code_stream << ICONST << "_" << 0;
     code_list.push_back(code_stream.str());
     clear(code_stream);
-    code_stream << GOTO << " " << 1;
+    code_stream << GOTO;
     code_list.push_back(code_stream.str());
     clear(code_stream);
     code_stream << true_label << ": " << ICONST << "_" << 1;
@@ -560,16 +560,23 @@ string get_declaration_code(const int tval, const string sval) {
     return ss.str();
 }
 
-unordered_set<int> merge_lists(unordered_set<int> list1, unordered_set<int> list2) {
-    unordered_set<int> union_list(list1.begin(), list1.end());
-    union_list.insert(list2.begin(), list2.end());
+unordered_set<int> *merge_lists(unordered_set<int> *list1, unordered_set<int> *list2) {
+    if (list1 == nullptr || list2 == nullptr) {
+        return nullptr;
+    }
+    
+    unordered_set<int> *union_list = new unordered_set<int>(list1->begin(), list1->end());
+    union_list->insert(list2->begin(), list2->end());
     return union_list;
 }
 
-void backpatch(unordered_set<int> list, int label_id) {
+void backpatch(unordered_set<int> *list, int label_id) {
+    if (list == nullptr) {
+        return;
+    }
     string label = get_label(label_id);
     
-    for (int code_idx : list) {
-        code_list[code_idx] = label + ": " + code_list[code_idx];
+    for (int code_idx : *list) {
+        code_list[code_idx] = code_list[code_idx] + " " + label;
     }
 }
