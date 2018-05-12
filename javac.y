@@ -229,12 +229,6 @@ IF:
                                 $$.next_set = merge($7.next_set, $13.next_set);
                                 (*$$.next_set).insert($8);
                             }
-    |   T_IF
-        T_LPAREN
-        EXPRESSION
-        T_RPAREN
-        T_SEMICOL
-
 WHILE:
         MARKER
         T_WHILE
