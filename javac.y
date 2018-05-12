@@ -648,6 +648,7 @@ string get_header() {
     ss << CLASS << " " << PUBLIC << " " << "test" << endl;
     ss << SUPER << " java/lang/object" << endl;
     ss << METHOD << " " << PUBLIC << " <init>()V" << endl;
+    ss << "aload_0" << endl;
     ss << INVOKE << " java/lang/object/<init>()V" << endl;
     ss << RETURN << endl;
     ss << END << " method" << endl;

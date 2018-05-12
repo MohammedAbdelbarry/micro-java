@@ -29,7 +29,7 @@ exp         [eE]{sign}?{digit}+
 
 id          ({letter}|_|\$)({letter}|{digit}|_|\$)*
 %%
-[ \t]          ;
+[ \t]       ;
 
 
 "+"         return T_PLUS;
