@@ -139,12 +139,13 @@ extern int yydebug;
 %%
 
 METHOD_BODY:                {   
-                                stringstream ss;
-                                ss << get_header();
+                                code_list.push_back(get_header());
                             }
         STATEMENT_LIST
         MARKER              {
                                 backpatch($2.next_set, $3);
+                                code_list.push_back(RETURN);
+                                code_list.push_back(string(END) + " method");
                             }
 
 STATEMENT_LIST:
@@ -760,9 +761,12 @@ string get_label(int c) {
 }
 
 unordered_set<int> *merge(unordered_set<int> *list1, unordered_set<int> *list2) {
-    if (list1 == nullptr || list2 == nullptr) {
+    if (list1 == nullptr && list2 == nullptr)
         return nullptr;
-    }
+    else if (list1 == nullptr)
+        return list2;
+    else if (list2 == nullptr)
+        return list1;
     
     unordered_set<int> *union_list = new unordered_set<int>(list1->begin(), list1->end());
     union_list->insert(list2->begin(), list2->end());
