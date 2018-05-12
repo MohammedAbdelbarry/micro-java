@@ -45,6 +45,12 @@
 #define FSUB "fsub"
 #define FMUL "fmul"
 #define FDIV "fdiv"
+#define INEG "ineg"
+#define FNEG "fneg"
+#define IXOR "ixor"
+#define IOR  "ior"
+#define IAND "iand"
+#define IREM "irem"
 
 /* Misc */
 #define PUBLIC "public"

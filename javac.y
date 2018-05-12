@@ -280,7 +280,20 @@ ASSIGNMENT_:
     |   T_ID
         T_ASSIGN
         BOOL_EXPRESSION
-        T_SEMICOL
+        T_SEMICOL           {
+                                string sval = $<sval>1;
+                                if (!id_exists(sval)) {
+                                    string msg = "Syntax error: Cannot find symbol: " + string(sval);
+                                    yyerror(msg.c_str());
+                                } else if (symtab[$1].type != $3.tval && !(symtab[$1].type != T_BOOLEAN)) {
+                                    string msg = "Syntax error: Incompatible types";
+                                    yyerror(msg.c_str());
+                                } else {
+                                    symtab[$1].initialized = true;
+                                    if (symtab[$1].type == T_BOOLEAN)
+                                      store(sval);
+                                }
+                            }
 
 ASSIGNMENT:
         T_ID
@@ -391,16 +404,48 @@ EXPRESSION:
                             }
     |   EXPRESSION
         T_MOD
-        EXPRESSION
+        EXPRESSION          {
+                                if (($1.tval != T_INT) && ($3.tval != T_INT)) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else {
+                                    $$.tval = $1.val;
+                                    code_list.push_back(IREM);
+                                }
+                            }
     |   EXPRESSION
         T_AND
-        EXPRESSION
+        EXPRESSION          {
+                                if (($1.tval != T_INT) && ($3.tval != T_INT)) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else {
+                                    $$.tval = $1.val;
+                                    code_list.push_back(IAND);
+                                }
+                            }
     |   EXPRESSION
         T_XOR
-        EXPRESSION
+        EXPRESSION          {
+                                if (($1.tval != T_INT) && ($3.tval != T_INT)) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else {
+                                    $$.tval = $1.val;
+                                    code_list.push_back(IXOR);
+                                }
+                            }
     |   EXPRESSION
         T_OR
-        EXPRESSION
+        EXPRESSION          {
+                                if (($1.tval != T_INT) && ($3.tval != T_INT)) {
+                                    string msg = "Syntax error: Bad operand types";
+                                    yyerror(msg.c_str());
+                                } else {
+                                    $$.tval = $1.val;
+                                    code_list.push_back(IOR);
+                                }
+                            }
     |   NUMBER              { $$.tval = $1; }
     |   T_ID                {
                                 if (!id_exists($1)) {
@@ -420,8 +465,17 @@ EXPRESSION:
     |   T_CPL
         EXPRESSION
     |   T_MINUS
-        EXPRESSION      %prec T_NEG
-
+        EXPRESSION      %prec T_NEG {
+                                        if($2.tval == T_BOOLEAN) {
+                                            yyerror("Sytanx error: cannot apply the unary '-' operation to expressions of type boolean");
+                                        } else if ($2.tval == T_INT) {
+                                            code_list.push_back(INEG);
+                                            $$.tval == $2.tval;
+                                        } else if ($2.tval == T_FLOAT) {
+                                            code_list.push_back(FNEG);
+                                            $$.tval == $2.tval;
+                                        }
+                                    }
 
 BOOL_EXPRESSION:
         EXPRESSION
@@ -468,22 +522,42 @@ BOOL_EXPRESSION:
                             }
     |   BOOL_EXPRESSION
         T_ANDAND
+        MARKER
         BOOL_EXPRESSION     {
-                                //TODO: GENERATE THE CODE!!
+                                backpatch($1.true_set, $3);
+                                $$.false_set = merge($1.false_set, $4.false_set);
+                                $$.true_set = $4.true_set;
                             }
     |   BOOL_EXPRESSION
         T_OROR
+        MARKER
         BOOL_EXPRESSION     {
-                                //TODO: GENERATE THE CODE!!
+                                backpatch($1.false_set, $3);
+                                $$.true_set = merge($1.true_set, $4.true_set);
+                                $$.false_set = $4.false_set;
                             }
     |   T_NOT
         BOOL_EXPRESSION     {
-                                //TODO: COMMIT SUICIDE :/
+                                $$.true_set = $2.false_set;
+                                $$.false_set = $2.true_set;
                             }
     |   T_LPAREN
         BOOL_EXPRESSION
-        T_RPAREN
-    |   T_BOOL_LITERAL
+        T_RPAREN            {
+                                $$.true_set = $2.true_set;
+                                $$.false_set = $2.false_set;
+                            }    
+    |   T_BOOL_LITERAL      {
+                                if ($1) {
+                                    $$.true_set = new unordered_set<int>();
+                                    $$.true_set.insert(code_list.size());
+                                    code_list.push_back(GOTO);
+                                } else {
+                                    $$.false_set = new unordered_set<int>();
+                                    $$.false_set.insert(code_list.size());
+                                    code_list.push_back(GOTO);
+                                }
+                            }
 
 
 NUMBER:
