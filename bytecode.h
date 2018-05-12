@@ -32,7 +32,8 @@
 #define LDC "ldc"
 
 /* Relational Operations */
-#define IFCMP "ifcmp_"
+#define IFCMP "if_icmp"
+#define FCMP  "fcmp"
 
 #define SWAP "swap"
 

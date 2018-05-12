@@ -120,6 +120,7 @@ extern int yydebug;
 %type   <exprval>   EXPRESSION
 %type   <exprval>   BOOL_EXPRESSION
 %type   <stmtval>   WHILE
+%type   <stmtval>   FOR
 %type   <stmtval>   IF
 
 
@@ -157,9 +158,11 @@ STATEMENT_LIST:
 
 STATEMENT:
         DECLARATION         {   $$.next_set = new unordered_set<int>();  }
-    |   ASSIGNMENT_         {   $$.next_set = new unordered_set<int>();  }
+    |   ASSIGNMENT_
+        T_SEMICOL           {   $$.next_set = new unordered_set<int>();  }
     |   IF                  {   $$.next_set = $1.next_set;               }
     |   WHILE               {   $$.next_set = $1.next_set;               }
+    |   FOR                 {   $$.next_set = $1.next_set;               }
 
 DECLARATION:
         PRIMITIVE
@@ -178,7 +181,8 @@ DECLARATION:
                                 }
                             }
     |   PRIMITIVE
-        ASSIGNMENT          {
+        ASSIGNMENT
+        T_SEMICOL          {
                                 int tval = $<tval>1;
                                 string sval = $2.sval;
 
@@ -239,19 +243,73 @@ WHILE:
         MARKER
         STATEMENT_LIST
         T_RBRACE            {
-                                stringstream ss;
-                                ss << GOTO << " " << get_label($1);
-                                
                                 backpatch($8.next_set, $1);
                                 backpatch($4.true_set, $7);
 
                                 $$.next_set = $4.false_set;
                             }
+                            
+FOR:
+        T_FOR
+        T_LPAREN
+        ASSIGNMENT_
+        T_SEMICOL
+        MARKER
+        BOOL_EXPRESSION
+        T_SEMICOL
+        MARKER
+        ASSIGNMENT_
+        GOTOSTUB
+        T_RPAREN
+        T_LBRACE
+        MARKER
+        STATEMENT_LIST
+        GOTOSTUB
+        T_RBRACE            {
+                                
+                                backpatch($6.true_set, $13);
+                                unordered_set<int> *new_set  = new unordered_set<int> ();
+                                new_set->insert($10);
+                                backpatch(new_set, $5);
+                                new_set->clear();
+                                new_set->insert($15);
+                                backpatch(new_set, $8);
+                                backpatch($14.next_set, $8);
+
+                                $$.next_set = $6.false_set;
+                            }
+    |   T_FOR
+        T_LPAREN
+        DECLARATION
+        MARKER
+        BOOL_EXPRESSION
+        T_SEMICOL
+        MARKER
+        ASSIGNMENT_
+        GOTOSTUB
+        T_RPAREN
+        T_LBRACE
+        MARKER
+        STATEMENT_LIST
+        GOTOSTUB
+        T_RBRACE            {
+                                
+                                backpatch($5.true_set, $12);
+                                unordered_set<int> *new_set  = new unordered_set<int> ();
+                                new_set->insert($9);
+                                backpatch(new_set, $4);
+                                new_set->clear();
+                                new_set->insert($14);
+                                backpatch(new_set, $7);
+                                backpatch($13.next_set, $7);
+
+                                $$.next_set = $5.false_set;
+                            }
+        
 ASSIGNMENT_:
         T_ID
         T_ASSIGN
-        EXPRESSION
-        T_SEMICOL           {
+        EXPRESSION           {
                                 string sval = $<sval>1;
                                 if (!id_exists(sval)) {
                                     string msg = "Syntax error: Cannot find symbol: " + string(sval);
@@ -270,8 +328,7 @@ ASSIGNMENT_:
                             }
     |   T_ID
         T_ASSIGN
-        BOOL_EXPRESSION
-        T_SEMICOL           {
+        BOOL_EXPRESSION     {
                                 string sval = $<sval>1;
                                 if (!id_exists(sval)) {
                                     string msg = "Syntax error: Cannot find symbol: " + string(sval);
@@ -289,12 +346,10 @@ ASSIGNMENT_:
 ASSIGNMENT:
         T_ID
         T_ASSIGN
-        EXPRESSION
-        T_SEMICOL           { $$.type = $3.tval; $$.sval = $1; }
+        EXPRESSION           { $$.type = $3.tval; $$.sval = $1; }
     |   T_ID
         T_ASSIGN
-        BOOL_EXPRESSION
-        T_SEMICOL           { $$.type = T_BOOLEAN; $$.sval = $1; }
+        BOOL_EXPRESSION      { $$.type = T_BOOLEAN; $$.sval = $1; }
 
 EXPRESSION:
         EXPRESSION
@@ -676,23 +731,26 @@ void clear(stringstream &ss) {
 void get_relop(string op, int type1, int type2, unordered_set<int> *true_set, unordered_set<int> *false_set) {
     if (true_set == nullptr || false_set == nullptr)
         return;
-    
+
     stringstream code_stream;
-    code_stream << IFCMP << op;
+    if (type1 == T_FLOAT && type2 == T_FLOAT) {
+        code_stream << FCMP << op;
+    } else if (type1 == T_INT && type2 == T_INT) {
+        code_stream << IFCMP << op;
+    } else {
+        yyerror("Syntax error: Invalid casting from int to float");
+        return;
+    }
     true_set->insert(code_list.size());
     code_list.push_back(code_stream.str());
-    
+
     clear(code_stream);
     code_stream << GOTO;
     false_set->insert(code_list.size());
     code_list.push_back(code_stream.str());
-    
+
     clear(code_stream);
-
-    if (type1 != type2) {
-
-    } else {
-    }
+    
 }
 
 string get_label(int c) {
