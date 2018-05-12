@@ -409,7 +409,7 @@ EXPRESSION:
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
                                 } else {
-                                    $$.tval = $1.val;
+                                    $$.tval = $1.tval;
                                     code_list.push_back(IREM);
                                 }
                             }
@@ -420,7 +420,7 @@ EXPRESSION:
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
                                 } else {
-                                    $$.tval = $1.val;
+                                    $$.tval = $1.tval;
                                     code_list.push_back(IAND);
                                 }
                             }
@@ -431,7 +431,7 @@ EXPRESSION:
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
                                 } else {
-                                    $$.tval = $1.val;
+                                    $$.tval = $1.tval;
                                     code_list.push_back(IXOR);
                                 }
                             }
@@ -442,7 +442,7 @@ EXPRESSION:
                                     string msg = "Syntax error: Bad operand types";
                                     yyerror(msg.c_str());
                                 } else {
-                                    $$.tval = $1.val;
+                                    $$.tval = $1.tval;
                                     code_list.push_back(IOR);
                                 }
                             }
@@ -539,7 +539,6 @@ BOOL_EXPRESSION:
     |   T_NOT
         BOOL_EXPRESSION     {
                                 $$.true_set = $2.false_set;
-                                $$.false_set = $2.true_set;
                             }
     |   T_LPAREN
         BOOL_EXPRESSION
@@ -550,11 +549,11 @@ BOOL_EXPRESSION:
     |   T_BOOL_LITERAL      {
                                 if ($1) {
                                     $$.true_set = new unordered_set<int>();
-                                    $$.true_set.insert(code_list.size());
+                                    $$.true_set->insert(code_list.size());
                                     code_list.push_back(GOTO);
                                 } else {
                                     $$.false_set = new unordered_set<int>();
-                                    $$.false_set.insert(code_list.size());
+                                    $$.false_set->insert(code_list.size());
                                     code_list.push_back(GOTO);
                                 }
                             }
